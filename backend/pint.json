@@ -1,0 +1,18 @@
+{
+    "preset": "laravel",
+    "rules": {
+        "ordered_imports": true,
+        "single_quote": true,
+        "trailing_comma_in_multiline": true,
+        "concat_space": {
+            "spacing": "one"
+        },
+        "declare_strict_types": false,
+        "php_unit_test_class_requires_covers": false,
+        "no_unused_imports": true
+    },
+    "exclude": [
+        "vendor",
+        "node_modules"
+    ]
+}

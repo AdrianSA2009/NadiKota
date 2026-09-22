@@ -1,0 +1,17 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+
+parameters:
+    paths:
+        - app
+
+    level: 5
+
+    ignoreErrors:
+        - '#Unsafe call to static method#'
+        - '#Access to an undefined property#'
+
+    excludePaths:
+        - vendor/*
+        - tests/*
+        - database/*

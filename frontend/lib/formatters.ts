@@ -1,0 +1,21 @@
+import { type ClassValue, clsx } from "clsx";
+
+export function cn(...inputs: ClassValue[]) {
+  return clsx(inputs);
+}
+
+export function formatCategory(category: string): string {
+  return { pothole: "Jalan berlubang", street_light: "PJU mati", other: "Lainnya" }[category] ?? category;
+}
+
+export function formatStatus(status: string): string {
+  return {
+    reported: "Dilaporkan",
+    verified: "Diverifikasi",
+    queued: "Dalam Antrean",
+    in_progress: "Dalam Perbaikan",
+    completed: "Selesai",
+    needs_review: "Perlu Tinjauan",
+    rejected: "Ditolak",
+  }[status] ?? status;
+}

@@ -1,0 +1,504 @@
+openapi: 3.0.3
+info:
+  title: NadiKota API
+  description: |
+    API untuk platform pelaporan infrastruktur Kota Batam.
+    Semua endpoint diawali dengan /api/v1.
+  version: 1.0.0
+  contact:
+    name: NadiKota Team
+
+servers:
+  - url: http://localhost:8000/api/v1
+    description: Local development
+
+security:
+  - bearerAuth: []
+
+paths:
+  /auth/google:
+    post:
+      summary: Login via Google id_token
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id_token]
+              properties:
+                id_token:
+                  type: string
+      responses:
+        '200':
+          description: Login berhasil
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '422':
+          description: Token tidak valid
+
+  /auth/google/redirect:
+    get:
+      summary: Redirect ke Google OAuth
+      tags: [Auth]
+      security: []
+      responses:
+        '302':
+          description: Redirect ke Google
+
+  /auth/google/callback:
+    get:
+      summary: Callback dari Google OAuth
+      tags: [Auth]
+      security: []
+      responses:
+        '200':
+          description: Login berhasil
+
+  /auth/otp/request:
+    post:
+      summary: Request OTP ke nomor telepon
+      tags: [Auth]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone]
+              properties:
+                phone:
+                  type: string
+                  example: "+6281234567890"
+      responses:
+        '200':
+          description: OTP terkirim
+
+  /auth/otp/verify:
+    post:
+      summary: Verifikasi OTP
+      tags: [Auth]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone, otp]
+              properties:
+                phone:
+                  type: string
+                otp:
+                  type: string
+      responses:
+        '200':
+          description: Verifikasi berhasil
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+
+  /auth/logout:
+    post:
+      summary: Logout
+      tags: [Auth]
+      responses:
+        '200':
+          description: Berhasil logout
+
+  /reports:
+    post:
+      summary: Buat laporan baru
+      tags: [Reports]
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [category, latitude, longitude, photo]
+              properties:
+                category:
+                  type: string
+                  enum: [pothole, street_light, other]
+                latitude:
+                  type: number
+                  format: double
+                longitude:
+                  type: number
+                  format: double
+                photo:
+                  type: string
+                  format: binary
+      responses:
+        '201':
+          description: Laporan diterima
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportResponse'
+
+  /reports/{report}:
+    get:
+      summary: Detail laporan
+      tags: [Reports]
+      parameters:
+        - name: report
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Detail laporan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportDetail'
+        '403':
+          description: Tidak diizinkan
+
+  /tickets:
+    get:
+      summary: Antrean tiket (admin)
+      tags: [Tickets]
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: category
+          in: query
+          schema:
+            type: string
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Daftar tiket
+
+  /tickets/{ticket}:
+    get:
+      summary: Detail tiket
+      tags: [Tickets]
+      parameters:
+        - name: ticket
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Detail tiket
+
+  /tickets/{ticket}/support:
+    post:
+      summary: Dukung tiket
+      tags: [Tickets]
+      parameters:
+        - name: ticket
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Dukungan tercatat
+        '422':
+          description: Tiket tidak aktif
+
+  /tickets/{ticket}/review:
+    post:
+      summary: Review tiket suspicious
+      tags: [Tickets]
+      parameters:
+        - name: ticket
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [decision, reason]
+              properties:
+                decision:
+                  type: string
+                  enum: [approved, rejected]
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: Review berhasil
+        '409':
+          description: Status tidak sesuai
+
+  /tickets/{ticket}/dispatch:
+    post:
+      summary: Dispatch tim lapangan
+      tags: [Tickets]
+      parameters:
+        - name: ticket
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [team_id]
+              properties:
+                team_id:
+                  type: integer
+                note:
+                  type: string
+      responses:
+        '200':
+          description: Dispatch berhasil
+
+  /tickets/{ticket}/complete:
+    post:
+      summary: Selesaikan tiket
+      tags: [Tickets]
+      parameters:
+        - name: ticket
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [after_photo]
+              properties:
+                after_photo:
+                  type: string
+                  format: binary
+                note:
+                  type: string
+      responses:
+        '200':
+          description: Tiket selesai
+
+  /tickets/{ticket}/confirmation:
+    post:
+      summary: Konfirmasi warga
+      tags: [Tickets]
+      parameters:
+        - name: ticket
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [confirmed]
+              properties:
+                confirmed:
+                  type: boolean
+                note:
+                  type: string
+      responses:
+        '200':
+          description: Konfirmasi tercatat
+
+  /me/tickets:
+    get:
+      summary: Daftar tugas tim lapangan
+      tags: [Field]
+      responses:
+        '200':
+          description: Daftar tiket ditugaskan
+
+  /me/notifications:
+    get:
+      summary: Daftar notifikasi
+      tags: [Notifications]
+      responses:
+        '200':
+          description: Daftar notifikasi
+
+  /me/notifications/{notification}/read:
+    put:
+      summary: Tandai notifikasi dibaca
+      tags: [Notifications]
+      parameters:
+        - name: notification
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Berhasil
+
+  /me/notifications/read-all:
+    put:
+      summary: Tandai semua notifikasi dibaca
+      tags: [Notifications]
+      responses:
+        '200':
+          description: Berhasil
+
+  /analytics/summary:
+    get:
+      summary: Ringkasan KPI dashboard
+      tags: [Analytics]
+      responses:
+        '200':
+          description: KPI dashboard
+
+  /admin/configuration:
+    get:
+      summary: Ambil konfigurasi aktif
+      tags: [Admin]
+      responses:
+        '200':
+          description: Konfigurasi aktif
+    put:
+      summary: Update konfigurasi
+      tags: [Admin]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                weights:
+                  type: object
+                  properties:
+                    severity:
+                      type: integer
+                    reporters:
+                      type: integer
+                    road_class:
+                      type: integer
+                    proximity:
+                      type: integer
+                    age:
+                      type: integer
+                clustering_radius_meters:
+                  type: number
+                  minimum: 15
+                  maximum: 25
+      responses:
+        '200':
+          description: Konfigurasi diperbarui
+
+  /admin/audit-logs:
+    get:
+      summary: Query log audit
+      tags: [Admin]
+      parameters:
+        - name: entity_type
+          in: query
+          schema:
+            type: string
+        - name: action
+          in: query
+          schema:
+            type: string
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        '200':
+          description: Daftar audit log
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Sanctum
+
+  schemas:
+    AuthResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            token:
+              type: string
+            user:
+              type: object
+              properties:
+                id:
+                  type: integer
+                name:
+                  type: string
+                email:
+                  type: string
+                role:
+                  type: string
+
+    ReportResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            id:
+              type: integer
+            ticket_id:
+              type: integer
+            status:
+              type: string
+            message:
+              type: string
+
+    ReportDetail:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            id:
+              type: integer
+            ticket_id:
+              type: integer
+            category:
+              type: string
+            status:
+              type: string
+            latitude:
+              type: number
+            longitude:
+              type: number
+            photos:
+              type: array
+              items:
+                type: object
+            ticket:
+              type: object

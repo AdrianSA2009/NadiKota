@@ -1,0 +1,106 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main, develop]
+
+jobs:
+  lint:
+    name: Lint (Pint)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, xml, ctype, json, bcmath, pdo, pgsql
+          tools: composer:v2
+      - run: composer install --no-progress --prefer-dist
+      - name: Check code style
+        run: vendor/bin/pint --test
+
+  analyse:
+    name: Static Analysis (Larastan)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, xml, ctype, json, bcmath, pdo, pgsql
+          tools: composer:v2
+      - run: composer install --no-progress --prefer-dist
+      - name: Run Larastan
+        run: vendor/bin/phpstan analyse --no-progress
+
+  test:
+    name: Tests (Pest)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_DB: nadi_kota_test
+          POSTGRES_USER: nadi_kota
+          POSTGRES_PASSWORD: password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, xml, ctype, json, bcmath, pdo, pgsql
+          tools: composer:v2
+          coverage: xdebug
+      - run: composer install --no-progress --prefer-dist
+      - name: Prepare environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+        env:
+          DB_CONNECTION: pgsql
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_DATABASE: nadi_kota_test
+          DB_USERNAME: nadi_kota
+          DB_PASSWORD: password
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+      - name: Run migrations
+        run: php artisan migrate --force
+        env:
+          DB_CONNECTION: pgsql
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_DATABASE: nadi_kota_test
+          DB_USERNAME: nadi_kota
+          DB_PASSWORD: password
+      - name: Run tests
+        run: vendor/bin/pest --coverage --min=0
+        env:
+          DB_CONNECTION: pgsql
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_DATABASE: nadi_kota_test
+          DB_USERNAME: nadi_kota
+          DB_PASSWORD: password
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+          CACHE_STORE: redis
+          QUEUE_CONNECTION: redis

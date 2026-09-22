@@ -1,0 +1,79 @@
+@import "tailwindcss";
+
+:root {
+  --color-primary-50: 240 245 250;
+  --color-primary-100: 220 232 243;
+  --color-primary-200: 185 207 227;
+  --color-primary-500: 47 99 143;
+  --color-primary-600: 29 79 122;
+  --color-primary-700: 21 63 99;
+  --color-primary-800: 18 52 91;
+  --color-primary-900: 11 31 58;
+
+  --color-accent-50: 236 254 248;
+  --color-accent-500: 15 159 140;
+  --color-accent-600: 8 127 112;
+  --color-accent-700: 6 102 90;
+
+  --color-action-50: 255 247 237;
+  --color-action-500: 234 88 12;
+  --color-action-600: 194 65 12;
+  --color-action-700: 154 52 18;
+
+  --color-neutral-0: 255 255 255;
+  --color-neutral-50: 248 250 252;
+  --color-neutral-100: 241 245 249;
+  --color-neutral-200: 226 232 240;
+  --color-neutral-300: 203 213 225;
+  --color-neutral-400: 148 163 184;
+  --color-neutral-500: 100 116 139;
+  --color-neutral-600: 71 85 105;
+  --color-neutral-700: 51 65 85;
+  --color-neutral-800: 30 41 59;
+  --color-neutral-900: 15 23 42;
+
+  --color-success-50: 236 253 245;
+  --color-success-600: 5 150 105;
+  --color-success-700: 4 120 87;
+  --color-danger-50: 254 242 242;
+  --color-danger-600: 220 38 38;
+  --color-danger-700: 185 28 28;
+  --color-warning-50: 255 251 235;
+  --color-warning-600: 217 119 6;
+  --color-warning-800: 146 64 14;
+  --color-info-50: 239 246 255;
+  --color-info-600: 37 99 235;
+  --color-info-800: 30 64 175;
+}
+
+@theme inline {
+  --color-primary-50: rgb(var(--color-primary-50));
+  --color-primary-100: rgb(var(--color-primary-100));
+  --color-primary-200: rgb(var(--color-primary-200));
+  --color-primary-500: rgb(var(--color-primary-500));
+  --color-primary-600: rgb(var(--color-primary-600));
+  --color-primary-700: rgb(var(--color-primary-700));
+  --color-primary-800: rgb(var(--color-primary-800));
+  --color-primary-900: rgb(var(--color-primary-900));
+  --color-accent-500: rgb(var(--color-accent-500));
+  --color-accent-600: rgb(var(--color-accent-600));
+  --color-accent-700: rgb(var(--color-accent-700));
+  --color-action-600: rgb(var(--color-action-600));
+  --color-action-700: rgb(var(--color-action-700));
+  --color-neutral-0: rgb(var(--color-neutral-0));
+  --color-neutral-50: rgb(var(--color-neutral-50));
+  --color-neutral-100: rgb(var(--color-neutral-100));
+  --color-neutral-200: rgb(var(--color-neutral-200));
+  --color-neutral-500: rgb(var(--color-neutral-500));
+  --color-neutral-700: rgb(var(--color-neutral-700));
+  --color-neutral-900: rgb(var(--color-neutral-900));
+  --color-success-700: rgb(var(--color-success-700));
+  --color-danger-700: rgb(var(--color-danger-700));
+  --color-warning-800: rgb(var(--color-warning-800));
+  --color-info-800: rgb(var(--color-info-800));
+}
+
+:focus-visible {
+  outline: 3px solid rgb(var(--color-accent-500));
+  outline-offset: 2px;
+}
