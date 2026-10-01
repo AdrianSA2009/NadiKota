@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { ChevronDown, CircleHelp, Clock, Construction, Lightbulb, ListFilter, Search, Truck, Users, Wrench } from "lucide-react";
+import { ChevronDown, CircleHelp, ClipboardCheck, Clock, Construction, Hourglass, Lightbulb, ListFilter, Search, Truck, Users, Wrench } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -46,7 +46,7 @@ export default function DispatchPage() {
       if (assignFilter === "unassigned" && t.assignedTeamId) return false;
       if (assignFilter === "assigned" && !t.assignedTeamId) return false;
       if (danger !== "all" && t.dangerLevel !== danger) return false;
-      if (q && !(`${t.ticketNumber} ${formatCategory(t.category)}`.toLowerCase().includes(q))) return false;
+      if (q && !(`${t.ticketNumber} ${formatCategory(t.category)} ${t.assigneeName ?? ""}`.toLowerCase().includes(q))) return false;
       return true;
     });
     return sortDispatchTickets(filtered, sort);
@@ -57,6 +57,10 @@ export default function DispatchPage() {
     if (isMobile) router.push(`/dispatch/${ticket.id}/tugaskan`);
     else setAssignTarget(ticket);
   };
+
+  // Bukti hasil sudah dikirim tim → status "Dalam Penilaian", aksi = buka tiket untuk dinilai.
+  const submitted = (t: DispatchTicket) => t.status === "in_progress" && t.reviewStatus === "submitted";
+  const goAssess = (t: DispatchTicket) => router.push(`/tickets?open=${t.id}`);
 
   if (tickets.isLoading || teams.isLoading) {
     return (
@@ -132,7 +136,7 @@ export default function DispatchPage() {
                 Cari
                 <div className="relative mt-1">
                   <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-neutral-400" aria-hidden="true" />
-                  <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Nomor tiket / kategori" className="min-h-11 w-full rounded-lg border border-neutral-300 bg-neutral-0 pl-9 pr-3 text-base font-normal text-neutral-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2" />
+                  <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Nomor tiket / kategori / nama PJ" className="min-h-11 w-full rounded-lg border border-neutral-300 bg-neutral-0 pl-9 pr-3 text-base font-normal text-neutral-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2" />
                 </div>
               </label>
               <label className="text-sm font-medium text-neutral-900">Penugasan
@@ -185,8 +189,14 @@ export default function DispatchPage() {
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-sm font-semibold text-neutral-900">{formatCategory(ticket.category)}</span>
                         <span className="mt-0.5 block truncate text-xs text-neutral-500">{ticket.ticketNumber} · {new Date(ticket.createdAt).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}</span>
+                        {ticket.assigneeName && (
+                          <span className="mt-1 flex min-w-0 items-center gap-1.5 text-xs font-medium text-neutral-700">
+                            <Users className="size-3.5 shrink-0" aria-hidden="true" />
+                            <span className="truncate">PJ: {ticket.assigneeName}</span>
+                          </span>
+                        )}
                         <span className="mt-2 flex flex-wrap items-center gap-1.5">
-                          <Badge variant={ticket.status === "in_progress" ? "in_progress" : "queued"} />
+                          <Badge variant={submitted(ticket) ? "assessing" : ticket.status === "in_progress" ? "in_progress" : "queued"} />
                           {ticket.dangerLevel && (
                             <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold ${ticket.dangerLevel === "bahaya" ? "border-danger-600 bg-danger-50 text-danger-700" : "border-warning-600 bg-warning-50 text-warning-800"}`}>
                               {ticket.dangerLevel === "bahaya" ? "Bahaya" : "Hati-hati"}
@@ -204,6 +214,12 @@ export default function DispatchPage() {
                             <dt className="text-neutral-500">Tim</dt>
                             <dd className={`font-medium ${team ? "text-neutral-900" : "text-neutral-400"}`}>{team ? team.name : "Belum ditugaskan"}</dd>
                           </div>
+                          {ticket.assigneeName && (
+                            <div className="flex justify-between gap-2">
+                              <dt className="text-neutral-500">PJ pelaksana</dt>
+                              <dd className="font-medium text-neutral-900">{ticket.assigneeName}</dd>
+                            </div>
+                          )}
                           <div className="flex justify-between gap-2">
                             <dt className="text-neutral-500">Lokasi</dt>
                             <dd className="font-medium text-neutral-900">
@@ -217,17 +233,24 @@ export default function DispatchPage() {
                             <dd className="font-medium text-neutral-900">{new Date(ticket.createdAt).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}</dd>
                           </div>
                         </dl>
-                        <div className="flex justify-end">
+                        <div className="border-t border-neutral-200 pt-3">
                           {!team ? (
-                            <Button type="button" className="min-h-11 px-4 py-2.5 text-sm" onClick={() => handleAssign(ticket)}>
-                              Tugaskan
+                            <Button type="button" className="inline-flex w-full items-center justify-center gap-2 py-3 text-sm" onClick={() => handleAssign(ticket)}>
+                              <Truck className="size-4 shrink-0" aria-hidden="true" />
+                              Tugaskan tim
                             </Button>
                           ) : ticket.status === "queued" ? (
-                            <Button type="button" variant="secondary" className="min-h-11 px-4 py-2.5 text-sm" onClick={() => handleAssign(ticket)}>
-                              Ubah Tim
+                            <Button type="button" variant="outline" className="inline-flex w-full items-center justify-center gap-2 py-3 text-sm" onClick={() => handleAssign(ticket)}>
+                              <Users className="size-4 shrink-0" aria-hidden="true" />
+                              Ubah tim
+                            </Button>
+                          ) : submitted(ticket) ? (
+                            <Button type="button" className="inline-flex w-full items-center justify-center gap-2 py-3 text-sm" onClick={() => goAssess(ticket)}>
+                              <ClipboardCheck className="size-4 shrink-0" aria-hidden="true" />
+                              Lakukan Penilaian
                             </Button>
                           ) : (
-                            <p className="py-1 text-xs text-neutral-500">Sedang dikerjakan tim — menunggu bukti hasil perbaikan.</p>
+                            <p className="py-1 text-center text-xs text-neutral-500">Sedang dikerjakan tim — menunggu bukti hasil perbaikan.</p>
                           )}
                         </div>
                       </div>
@@ -267,14 +290,22 @@ export default function DispatchPage() {
                           </span>
                         </span>
                       </td>
-                      <td className={`px-4 py-3 ${team ? "font-medium text-neutral-800" : "text-neutral-400"}`}>
-                        <span className="flex items-center gap-1.5 whitespace-nowrap">
-                          <Users className="size-3.5 shrink-0" aria-hidden="true" />
-                          {team ? team.name : "Belum ditugaskan"}
-                        </span>
+                      <td className="px-4 py-3">
+                        <span className={`block whitespace-nowrap ${team ? "font-medium text-neutral-800" : "text-neutral-400"}`}>{team ? team.name : "Belum ditugaskan"}</span>
+                        {ticket.assigneeName && (
+                          <span className="mt-0.5 flex items-center gap-1 whitespace-nowrap text-xs text-neutral-500">
+                            <Users className="size-3 shrink-0" aria-hidden="true" />
+                            PJ: {ticket.assigneeName}
+                          </span>
+                        )}
                       </td>
                       <td className="px-4 py-3">
-                        {ticket.status === "in_progress" ? (
+                        {submitted(ticket) ? (
+                          <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-info-600 bg-info-50 px-2.5 py-1 text-xs font-semibold text-info-800">
+                            <Hourglass className="size-3.5" aria-hidden="true" />
+                            Dalam Penilaian
+                          </span>
+                        ) : ticket.status === "in_progress" ? (
                           <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-primary-800 px-2.5 py-1 text-xs font-semibold text-neutral-0">
                             <Wrench className="size-3.5" aria-hidden="true" />
                             Dalam Perbaikan
@@ -302,6 +333,10 @@ export default function DispatchPage() {
                         ) : ticket.status === "queued" ? (
                           <Button type="button" variant="secondary" className="min-h-9 px-3 py-1.5 text-xs" onClick={() => handleAssign(ticket)}>
                             Ubah Tim
+                          </Button>
+                        ) : submitted(ticket) ? (
+                          <Button type="button" className="min-h-9 px-3 py-1.5 text-xs" onClick={() => goAssess(ticket)}>
+                            Lakukan Penilaian
                           </Button>
                         ) : (
                           <span className="text-xs text-neutral-400">Menunggu bukti hasil</span>
@@ -362,7 +397,7 @@ function AssignModal({ ticket, teams, onClose, onDone, onError }: {
         </section>
         <section>
           <h3 className="mb-3 border-b border-neutral-100 pb-2 text-xs font-semibold uppercase tracking-wide text-neutral-500">Pilih tim</h3>
-          <TeamPicker chosen={form.chosen} onChoose={form.setChosen} search={form.search} onSearch={form.setSearch} teams={form.teams} recommended={form.recommended} />
+          <TeamPicker chosen={form.chosen} onChoose={form.setChosen} search={form.search} onSearch={form.setSearch} teams={form.teams} recommended={form.recommended} distanceKm={form.distanceKm} variant="list" />
         </section>
       </div>
     </Modal>

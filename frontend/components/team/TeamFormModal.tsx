@@ -8,7 +8,7 @@ import { TeamFormBody } from "./TeamFormBody";
 import { useTeamForm } from "./useTeamForm";
 
 /**
- * Modal DESKTOP untuk buat/edit tim: dua kolom (form kiri; PJ + preview kanan),
+ * Modal DESKTOP untuk buat/edit tim: dua kolom (data tim kiri; PJ kanan),
  * header berikon, footer Batal/Simpan. Logika = useTeamForm (sama dgn halaman mobile).
  */
 export function TeamFormModal({ team, onClose }: { team: Team | null; onClose: () => void }) {

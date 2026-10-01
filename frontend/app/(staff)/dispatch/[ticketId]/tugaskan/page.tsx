@@ -13,7 +13,7 @@ import { TicketSummary, TeamPicker, useAssignForm } from "@/components/dispatch/
 
 /**
  * Halaman MOBILE "Tugaskan Tiket" — header sticky + ringkasan tiket + daftar tim
- * radio satu kolom + tombol aksi sticky. Bisa dibuka langsung/di-refresh.
+ * radio satu kolom + tombol aksi di akhir konten (ikut scroll). Bisa dibuka langsung/di-refresh.
  */
 export default function AssignTicketPage() {
   const params = useParams<{ ticketId: string }>();
@@ -70,7 +70,7 @@ function AssignTicketForm({ header, ticket, teams, onDone, onError }: {
 }) {
   const form = useAssignForm({ ticket, teams, onDone, onError });
 
-  // pb-20 di mobile: ruang bottom bar (fixed) supaya tombol aksi sticky tidak tertutup.
+  // Tombol ikut alur konten (bukan bottom bar sticky) — pb-20 hanya ruang bottom nav mobile.
   return (
     <main className="absolute inset-0 flex flex-col bg-neutral-50 pb-20 md:pb-0">
       {header}
@@ -80,19 +80,14 @@ function AssignTicketForm({ header, ticket, teams, onDone, onError }: {
           <TicketSummary ticket={ticket} />
           <section>
             <h2 className="mb-2 border-b border-neutral-100 pb-2 text-xs font-semibold uppercase tracking-wide text-neutral-500">Pilih tim</h2>
-            <TeamPicker chosen={form.chosen} onChoose={form.setChosen} search={form.search} onSearch={form.setSearch} teams={form.teams} recommended={form.recommended} />
+            <TeamPicker chosen={form.chosen} onChoose={form.setChosen} search={form.search} onSearch={form.setSearch} teams={form.teams} recommended={form.recommended} distanceKm={form.distanceKm} />
           </section>
-        </div>
-      </div>
-
-      <footer className="border-t border-neutral-200 bg-neutral-0 px-4 py-3" style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))" }}>
-        <div className="mx-auto w-full max-w-lg">
           <Button type="button" className="w-full justify-center" disabled={!form.chosen || form.assign.isPending} onClick={() => form.assign.mutate()}>
             <Truck className="mr-2 inline size-4" aria-hidden="true" />
             {form.assign.isPending ? "Menyimpan..." : form.isReassign ? "Simpan perubahan" : "Tugaskan ke tim ini"}
           </Button>
         </div>
-      </footer>
+      </div>
     </main>
   );
 }

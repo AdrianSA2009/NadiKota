@@ -62,6 +62,14 @@ final class TicketResource extends BaseResource
                 ];
             }),
             'assignedTeamId' => $this->assigned_team_id,
+            // Nama tim yang ditugaskan mengerjakan tiket ini.
+            'assignedTeamName' => $this->whenLoaded('team', fn () => $this->team?->name),
+            // Nama pelapor (laporan pertama → terbaru, unik) — bukan sekadar jumlah.
+            'reporterNames' => $this->whenLoaded('reports', function () {
+                return $this->reports->sortBy('id')->pluck('user.name')->filter()->unique()->values()->all();
+            }),
+            // Nama PJ yang menangani tiket (snapshot saat dispatch/mulai — tidak ikut PJ diganti).
+            'assigneeName' => $this->assignee_name,
             'uniqueReporterCount' => $this->whenCounted('reporters'),
             'latitude' => $latitude,
             'longitude' => $longitude,

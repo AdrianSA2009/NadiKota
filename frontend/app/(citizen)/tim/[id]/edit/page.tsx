@@ -14,7 +14,7 @@ function EditTeamContent() {
   const invalid = !Number.isInteger(id) || id <= 0;
   const query = useQuery({ queryKey: ["team", id], queryFn: () => getTeam(id), enabled: !invalid });
 
-  // Hanya data tim — Ganti PJ punya halaman sendiri (/tim/[id]/ganti-pj).
+  // Data tim + PJ (PJ bisa diganti langsung dari form edit).
   return (
     <TeamFormPage
       key={query.data?.team.id ?? "loading"}
@@ -26,7 +26,7 @@ function EditTeamContent() {
   );
 }
 
-/** Halaman Edit Tim (mobile route /tim/[id]/edit) — data tim saja. */
+/** Halaman Edit Tim (mobile route /tim/[id]/edit) — data tim + ganti PJ. */
 export default function EditTeamPage() {
   return (
     <RequireRole roles={ADMIN}>

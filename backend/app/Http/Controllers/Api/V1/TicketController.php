@@ -39,8 +39,8 @@ class TicketController extends Controller
     {
         Gate::authorize('viewAny', Ticket::class);
 
-        // eager load foto laporan + AI + bukti after (kartu review/verifikasi) — hindari N+1
-        $query = Ticket::with(['reports.photos', 'reports.latestAiValidation', 'photos'])
+        // eager load foto laporan + AI + bukti after (kartu review/verifikasi) + nama pelapor — hindari N+1
+        $query = Ticket::with(['reports.photos', 'reports.latestAiValidation', 'reports.user:id,name', 'photos', 'team:id,name'])
             ->orderByDesc('priority_score');
 
         if ($request->filled('status')) {
@@ -75,6 +75,7 @@ class TicketController extends Controller
             'prioritySnapshots',
             'statusHistories',
             'dispatches',
+            'team:id,name',
         ]);
 
         $reporterCount = $ticket->reporters()->count();
@@ -256,6 +257,8 @@ class TicketController extends Controller
             // Penugasan TIDAK langsung mengerjakan — tim menekan "Mulai" (status tetap queued).
             $locked->update([
                 'assigned_team_id' => $team->id,
+                // Snapshot nama PJ pelaksana — tetap tercatat walau PJ tim diganti nanti.
+                'assignee_name' => $team->leader?->name,
             ]);
 
             $locked->statusHistories()->create([
@@ -490,6 +493,8 @@ class TicketController extends Controller
             $locked->update([
                 'status' => TicketStatus::IN_PROGRESS,
                 'started_at' => now(),
+                // Ambil ulang saat mulai — PJ terbaru saat tiket benar-benar dikerjakan.
+                'assignee_name' => $locked->team?->leader?->name ?? $locked->assignee_name,
             ]);
 
             $locked->statusHistories()->create([
@@ -574,6 +579,13 @@ class TicketController extends Controller
     public function cancel(Request $request, Ticket $ticket): JsonResponse
     {
         Gate::authorize('cancel', $ticket);
+
+        // Tiket yang sudah dikerjakan tim tidak boleh dibatalkan — selesaikan lewat alur bukti.
+        if ($ticket->status === TicketStatus::IN_PROGRESS) {
+            return response()->json([
+                'error' => ['message' => 'Tiket yang sudah mulai dikerjakan tidak bisa dibatalkan. Selesaikan atau tunggu bukti hasil perbaikan.'],
+            ], 409);
+        }
 
         $validated = $request->validate([
             'reason' => 'required|string|min:3|max:500',

@@ -4,7 +4,7 @@ import { useMemo, useRef, useState, type ComponentProps } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, ChevronDown, CircleCheck, ImagePlus, LayoutGrid, List, Loader2, MapPin, MoreVertical, Navigation, Play, Plus, Search, Ticket, TriangleAlert, Users, UserX, Wrench } from "lucide-react";
+import { CheckCircle2, ChevronDown, ImagePlus, ListFilter, Loader2, MapPin, MoreVertical, Navigation, Play, Plus, Search, Ticket, TriangleAlert, Users } from "lucide-react";
 import { apiClient } from "@/lib/apiClient";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -55,6 +55,7 @@ function TeamsContent() {
   const queryClient = useQueryClient();
   const showToast = useToastStore((s) => s.show);
   const [formTeam, setFormTeam] = useState<"create" | Team | null>(null);
+  const [detailTeam, setDetailTeam] = useState<Team | null>(null);
   const [menuId, setMenuId] = useState<number | null>(null);
   const [confirmTeam, setConfirmTeam] = useState<Team | null>(null);
   // Tugas tim (role field_team): akordeon + kirim bukti hasil perbaikan.
@@ -116,25 +117,13 @@ function TeamsContent() {
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "tersedia" | "bertugas" | "nonaktif">("all");
   const [sort, setSort] = useState<"name" | "active" | "newest">("name");
-  const [view, setView] = useState<"grid" | "table">("grid");
-  const [onlyNoPj, setOnlyNoPj] = useState(false);
+  // Mobile: filter & urutan disembunyikan di balik tombol (konsisten dgn halaman Dispatch).
+  const [filterOpen, setFilterOpen] = useState(false);
 
   const resetFilters = () => {
     setQ("");
     setStatusFilter("all");
-    setOnlyNoPj(false);
   };
-
-  const stats = useMemo(() => {
-    const all = teamsQuery.data ?? [];
-    return {
-      total: all.length,
-      bertugas: all.filter((t) => t.status === "bertugas").length,
-      tersedia: all.filter((t) => t.status === "tersedia").length,
-      activeTickets: all.reduce((sum, t) => sum + t.activeTicketCount, 0),
-      noPj: all.filter((t) => !t.leader).length,
-    };
-  }, [teamsQuery.data]);
 
   const teams = useMemo(() => {
     const needle = q.trim().toLowerCase();
@@ -145,13 +134,12 @@ function TeamsContent() {
       );
     }
     if (statusFilter !== "all") list = list.filter((t) => t.status === statusFilter);
-    if (onlyNoPj) list = list.filter((t) => !t.leader);
     const sorted = [...list];
     if (sort === "name") sorted.sort((a, b) => a.name.localeCompare(b.name));
     if (sort === "active") sorted.sort((a, b) => b.activeTicketCount - a.activeTicketCount);
     if (sort === "newest") sorted.sort((a, b) => Date.parse(b.createdAt ?? "") - Date.parse(a.createdAt ?? ""));
     return sorted;
-  }, [teamsQuery.data, q, statusFilter, onlyNoPj, sort]);
+  }, [teamsQuery.data, q, statusFilter, sort]);
 
   // Field team → tugas saya
   const tasksQuery = useQuery({
@@ -182,7 +170,7 @@ function TeamsContent() {
 
           {isAdmin && (
             <>
-              {/* Toolbar desktop */}
+              {/* Toolbar desktop — gaya konsisten dgn filter halaman Dispatch */}
               <div className="hidden flex-wrap items-center gap-2 md:flex">
                 <label className="relative">
                   <span className="sr-only">Cari tim</span>
@@ -191,14 +179,14 @@ function TeamsContent() {
                     value={q}
                     onChange={(e) => setQ(e.target.value)}
                     placeholder="Cari nama / lokasi / PJ…"
-                    className="min-h-11 w-52 rounded-xl border border-neutral-300 bg-neutral-0 pl-9 pr-3 text-sm text-neutral-900 placeholder:text-neutral-400 focus-visible:border-accent-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/25 lg:w-64"
+                    className="min-h-11 w-52 rounded-lg border border-neutral-300 bg-neutral-0 pl-9 pr-3 text-base font-normal text-neutral-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2 lg:w-64"
                   />
                 </label>
                 <select
                   aria-label="Filter status"
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
-                  className="min-h-11 rounded-xl border border-neutral-300 bg-neutral-0 px-3 text-sm text-neutral-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/25"
+                  className="min-h-11 rounded-lg border border-neutral-300 bg-neutral-0 px-3 text-base font-normal text-neutral-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2"
                 >
                   <option value="all">Semua status</option>
                   <option value="tersedia">Tersedia</option>
@@ -209,34 +197,12 @@ function TeamsContent() {
                   aria-label="Urutkan"
                   value={sort}
                   onChange={(e) => setSort(e.target.value as typeof sort)}
-                  className="min-h-11 rounded-xl border border-neutral-300 bg-neutral-0 px-3 text-sm text-neutral-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/25"
+                  className="min-h-11 rounded-lg border border-neutral-300 bg-neutral-0 px-3 text-base font-normal text-neutral-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2"
                 >
                   <option value="name">Nama (A–Z)</option>
                   <option value="active">Tiket aktif terbanyak</option>
                   <option value="newest">Terbaru</option>
                 </select>
-                <div className="flex overflow-hidden rounded-xl border border-neutral-300" role="group" aria-label="Tampilan">
-                  <button
-                    type="button"
-                    aria-label="Tampilan grid"
-                    aria-pressed={view === "grid"}
-                    onClick={() => setView("grid")}
-                    className={`flex min-h-11 items-center gap-1.5 px-3 text-sm font-medium transition-colors ${view === "grid" ? "bg-primary-800 text-neutral-0" : "bg-neutral-0 text-neutral-600 hover:bg-neutral-50"}`}
-                  >
-                    <LayoutGrid className="size-4" aria-hidden="true" />
-                    <span className="hidden lg:inline">Grid</span>
-                  </button>
-                  <button
-                    type="button"
-                    aria-label="Tampilan tabel"
-                    aria-pressed={view === "table"}
-                    onClick={() => setView("table")}
-                    className={`flex min-h-11 items-center gap-1.5 border-l border-neutral-300 px-3 text-sm font-medium transition-colors ${view === "table" ? "bg-primary-800 text-neutral-0" : "bg-neutral-0 text-neutral-600 hover:bg-neutral-50"}`}
-                  >
-                    <List className="size-4" aria-hidden="true" />
-                    <span className="hidden lg:inline">Tabel</span>
-                  </button>
-                </div>
                 <Button type="button" onClick={openCreate}>
                   <Plus className="mr-1.5 inline size-4" aria-hidden="true" />
                   Tambah Tim
@@ -251,27 +217,54 @@ function TeamsContent() {
           )}
         </header>
 
-        {/* Ringkasan statistik (admin) */}
+        {/* Mobile admin — filter & urutan di balik tombol (konsisten dgn halaman Dispatch) */}
         {isAdmin && (
-          <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-5">
-            {teamsQuery.isLoading ? (
-              Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-20 rounded-xl" />)
-            ) : (
-              <>
-                <StatCard icon={Users} label="Total Tim" value={stats.total} />
-                <StatCard icon={Wrench} label="Bertugas" value={stats.bertugas} tone="warning" />
-                <StatCard icon={CircleCheck} label="Tersedia" value={stats.tersedia} tone="success" />
-                <StatCard icon={Ticket} label="Tiket Aktif" value={stats.activeTickets} />
-                <StatCard
-                  icon={UserX}
-                  label="PJ belum diatur"
-                  value={stats.noPj}
-                  tone="warning"
-                  active={onlyNoPj}
-                  onClick={() => { setOnlyNoPj((v) => !v); setStatusFilter("all"); }}
-                />
-              </>
-            )}
+          <div className="mt-5 md:hidden">
+            <Button type="button" variant="secondary" className="w-full justify-center" aria-expanded={filterOpen} onClick={() => setFilterOpen((v) => !v)}>
+              <ListFilter className="mr-2 inline size-4" aria-hidden="true" />
+              Filter & urutan
+            </Button>
+            <Card className={`${filterOpen ? "block" : "hidden"} mt-3`}>
+              <div className="grid gap-3">
+                <label className="text-sm font-medium text-neutral-900">
+                  Cari
+                  <div className="relative mt-1">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-neutral-400" aria-hidden="true" />
+                    <input
+                      value={q}
+                      onChange={(e) => setQ(e.target.value)}
+                      placeholder="Cari nama / lokasi / PJ…"
+                      className="min-h-11 w-full rounded-lg border border-neutral-300 bg-neutral-0 pl-9 pr-3 text-base font-normal text-neutral-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2"
+                    />
+                  </div>
+                </label>
+                <label className="text-sm font-medium text-neutral-900">
+                  Status
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
+                    className="mt-1 min-h-11 w-full rounded-lg border border-neutral-300 bg-neutral-0 px-3 text-base font-normal text-neutral-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2"
+                  >
+                    <option value="all">Semua status</option>
+                    <option value="tersedia">Tersedia</option>
+                    <option value="bertugas">Bertugas</option>
+                    <option value="nonaktif">Nonaktif</option>
+                  </select>
+                </label>
+                <label className="text-sm font-medium text-neutral-900">
+                  Urutkan
+                  <select
+                    value={sort}
+                    onChange={(e) => setSort(e.target.value as typeof sort)}
+                    className="mt-1 min-h-11 w-full rounded-lg border border-neutral-300 bg-neutral-0 px-3 text-base font-normal text-neutral-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2"
+                  >
+                    <option value="name">Nama (A–Z)</option>
+                    <option value="active">Tiket aktif terbanyak</option>
+                    <option value="newest">Terbaru</option>
+                  </select>
+                </label>
+              </div>
+            </Card>
           </div>
         )}
 
@@ -401,11 +394,36 @@ function TeamsContent() {
         ) : (
           <>
             {teamsQuery.isLoading && (
-              <div className="mt-6 grid grid-cols-1 gap-4 md:[grid-template-columns:repeat(auto-fill,minmax(340px,1fr))]">
-                <Skeleton className="h-56 rounded-xl" />
-                <Skeleton className="h-56 rounded-xl" />
-                <Skeleton className="h-56 rounded-xl" />
-              </div>
+              <>
+                {/* Mobile — skeleton kartu */}
+                <div className="mt-6 grid grid-cols-1 gap-4 md:hidden">
+                  <Skeleton className="h-56 rounded-xl" />
+                  <Skeleton className="h-56 rounded-xl" />
+                  <Skeleton className="h-56 rounded-xl" />
+                </div>
+                {/* Desktop — skeleton tabel (mengikuti kolom tabel asli) */}
+                <div className="mt-6 hidden overflow-hidden rounded-xl border border-neutral-200 bg-neutral-0 md:block">
+                  <div className="flex gap-4 border-b border-neutral-200 bg-neutral-50 px-4 py-3">
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-4 w-20" />
+                    <Skeleton className="ml-auto h-4 w-24" />
+                  </div>
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <div key={i} className="flex items-center gap-4 border-b border-neutral-100 px-4 py-3 last:border-b-0">
+                      <Skeleton className="size-8 shrink-0 rounded-full" />
+                      <Skeleton className="h-4 w-44" />
+                      <Skeleton className="h-4 w-28" />
+                      <Skeleton className="h-4 w-28" />
+                      <Skeleton className="h-4 w-16" />
+                      <Skeleton className="h-6 w-24 rounded-full" />
+                      <Skeleton className="ml-auto h-8 w-44" />
+                    </div>
+                  ))}
+                </div>
+              </>
             )}
             {teamsQuery.isError && <Card className="mt-6 border-danger-600 bg-danger-50 text-sm text-danger-700">Gagal memuat tim.</Card>}
 
@@ -429,9 +447,9 @@ function TeamsContent() {
               </div>
             )}
 
-            {/* Tampilan GRID */}
-            {view === "grid" && teams.length > 0 && (
-              <div className="mt-6 grid grid-cols-1 gap-4 md:[grid-template-columns:repeat(auto-fill,minmax(340px,1fr))]">
+            {/* Kartu — hanya mobile; desktop selalu tabel */}
+            {teams.length > 0 && (
+              <div className="mt-6 grid grid-cols-1 gap-4 md:hidden">
                 {teams.map((team) => (
                   <li key={team.id} className="relative min-w-0 list-none">
                     <div className={`relative h-full rounded-xl border border-neutral-200 bg-neutral-0 p-4 transition duration-200 motion-safe:hover:-translate-y-0.5 hover:border-primary-300 hover:shadow-md ${team.status === "bertugas" ? "border-l-4 border-l-warning-600" : ""}`}>
@@ -540,9 +558,9 @@ function TeamsContent() {
               </div>
             )}
 
-            {/* Tampilan TABEL */}
-            {view === "table" && teams.length > 0 && (
-              <div className="mt-6 overflow-x-auto rounded-xl border border-neutral-200 bg-neutral-0">
+            {/* Tabel — tampilan desktop */}
+            {teams.length > 0 && (
+              <div className="mt-6 hidden overflow-x-auto rounded-xl border border-neutral-200 bg-neutral-0 md:block">
                 <table className="w-full min-w-[760px] text-left text-sm">
                   <thead className="border-b border-neutral-200 bg-neutral-50 text-xs uppercase tracking-wide text-neutral-500">
                     <tr>
@@ -575,7 +593,7 @@ function TeamsContent() {
                         <td className="px-4 py-3"><TeamStatusPill status={team.status} /></td>
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-end gap-1">
-                            <Button type="button" variant="ghost" size="sm" onClick={() => router.push(`/teams/${team.id}`)}>Detail</Button>
+                            <Button type="button" variant="ghost" size="sm" onClick={() => { setMenuId(null); setDetailTeam(team); }}>Detail</Button>
                             <Button type="button" variant="ghost" size="sm" onClick={() => openEdit(team)}>Edit</Button>
                             {team.isActive ? (
                               <Button type="button" variant="danger" size="sm" onClick={() => setConfirmTeam(team)}>Nonaktifkan</Button>
@@ -595,6 +613,66 @@ function TeamsContent() {
 
         {formTeam !== null && (
           <TeamFormModal team={formTeam === "create" ? null : formTeam} onClose={() => setFormTeam(null)} />
+        )}
+
+        {detailTeam && (
+          <Modal
+            title={detailTeam.name}
+            caption={detailTeam.district ?? "Semua kecamatan"}
+            icon={Users}
+            onClose={() => setDetailTeam(null)}
+            footer={
+              <>
+                <Button type="button" variant="secondary" className="flex-1" onClick={() => setDetailTeam(null)}>Tutup</Button>
+                <Button type="button" className="flex-1" onClick={() => { const t = detailTeam; setDetailTeam(null); setFormTeam(t); }}>Edit</Button>
+              </>
+            }
+          >
+            <dl className="space-y-3 text-sm">
+              <div className="flex items-center justify-between gap-3">
+                <dt className="text-neutral-500">Status</dt>
+                <dd><TeamStatusPill status={detailTeam.status} /></dd>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <dt className="text-neutral-500">Penanggung Jawab</dt>
+                <dd className="min-w-0 text-right font-medium text-neutral-900">
+                  {detailTeam.leader ? (
+                    <>
+                      <span className="block truncate">{detailTeam.leader.name}</span>
+                      <span className="block text-xs font-normal text-neutral-500">@{detailTeam.leader.username ?? "—"}</span>
+                      {detailTeam.leader.phone && <span className="block text-xs font-normal text-neutral-500">{detailTeam.leader.phone}</span>}
+                    </>
+                  ) : (
+                    <span className="inline-flex items-center rounded-full border border-warning-600 bg-warning-50 px-2 py-0.5 text-xs font-semibold text-warning-800">Belum diatur</span>
+                  )}
+                </dd>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <dt className="text-neutral-500">Jenis tim</dt>
+                <dd className="font-medium text-neutral-900">{detailTeam.type ?? "—"}</dd>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <dt className="text-neutral-500">Tiket aktif</dt>
+                <dd className="font-medium text-neutral-900">{detailTeam.activeTicketCount}</dd>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <dt className="text-neutral-500">Total tiket ditangani</dt>
+                <dd className="font-medium text-neutral-900">{detailTeam.totalTicketCount}</dd>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <dt className="text-neutral-500">Dibuat</dt>
+                <dd className="font-medium text-neutral-900">
+                  {detailTeam.createdAt ? new Date(detailTeam.createdAt).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" }) : "—"}
+                </dd>
+              </div>
+              {detailTeam.description && (
+                <div className="border-t border-neutral-100 pt-3">
+                  <dt className="text-neutral-500">Deskripsi</dt>
+                  <dd className="mt-1 text-neutral-800">{detailTeam.description}</dd>
+                </div>
+              )}
+            </dl>
+          </Modal>
         )}
 
         {confirmTeam && (
@@ -628,41 +706,4 @@ function TeamsContent() {
       </div>
     </div>
   );
-}
-
-/** Kartu ringkasan statistik di bawah header (ikon dalam lingkaran lembut + angka besar). */
-function StatCard({ icon: Icon, label, value, tone = "primary", active = false, onClick }: {
-  icon: typeof Users;
-  label: string;
-  value: number;
-  tone?: "primary" | "warning" | "success";
-  active?: boolean;
-  onClick?: () => void;
-}) {
-  const tones = {
-    primary: "bg-primary-50 text-primary-700",
-    warning: "bg-warning-50 text-warning-800",
-    success: "bg-success-50 text-success-700",
-  };
-  const body = (
-    <>
-      <span className={`flex size-9 shrink-0 items-center justify-center rounded-full ${tones[tone]}`} aria-hidden="true">
-        <Icon className="size-5" />
-      </span>
-      <div className="min-w-0">
-        <p className="text-xl font-bold leading-tight text-neutral-900">{value}</p>
-        <p className="truncate text-xs text-neutral-500">{label}</p>
-      </div>
-    </>
-  );
-  const className = `flex w-full items-center gap-3 rounded-xl border bg-neutral-0 p-3 text-left transition ${active ? "border-primary-500 ring-2 ring-accent-500/30" : "border-neutral-200"} ${onClick ? "hover:border-primary-300" : ""}`;
-
-  if (onClick) {
-    return (
-      <button type="button" aria-pressed={active} onClick={onClick} className={className}>
-        {body}
-      </button>
-    );
-  }
-  return <div className={className}>{body}</div>;
 }

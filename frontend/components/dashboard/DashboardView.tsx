@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Clock, HardHat, ListOrdered, Percent, RefreshCw, Search, TriangleAlert, TrendingUp, Users } from "lucide-react";
+import { Clock, HardHat, ListOrdered, Percent, RefreshCw, Search, TriangleAlert, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { ErrorState } from "@/components/ui/ErrorState";
@@ -33,9 +33,9 @@ export function DashboardView() {
         </header>
 
         {/* KPI — semuanya dari backend /analytics/summary */}
-        <section aria-label="Ringkasan KPI" className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-5">
+        <section aria-label="Ringkasan KPI" className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
           {kpiQuery.isLoading ? (
-            Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-24 rounded-xl" />)
+            Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-24 rounded-xl" />)
           ) : kpiQuery.isError ? (
             <div className="col-span-full"><ErrorState message={kpiQuery.error.message} onRetry={() => void kpiQuery.refetch()} /></div>
           ) : (
@@ -43,7 +43,6 @@ export function DashboardView() {
               <KpiCard icon={ListOrdered} label="Total tiket" value={formatNum(s?.total_tickets ?? 0)} />
               <KpiCard icon={Search} label="Perlu tinjauan" value={formatNum(byStatus.needs_review ?? 0)} />
               <KpiCard icon={HardHat} label="Dalam perbaikan" value={formatNum(byStatus.in_progress ?? 0)} />
-              <KpiCard icon={Users} label="Pelapor unik" value={formatNum(s?.unique_reporters ?? 0)} />
               <KpiCard icon={TriangleAlert} label="Eskalasi SLA" value={formatNum(s?.sla_escalated ?? 0)} danger />
             </>
           )}

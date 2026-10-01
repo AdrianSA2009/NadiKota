@@ -104,6 +104,16 @@ final class TeamController extends Controller
     {
         Gate::authorize('manage', $team);
 
+        // PJ tidak bisa diganti selagi tim sedang mengerjakan tiket (in_progress).
+        $busy = \App\Models\Ticket::where('assigned_team_id', $team->id)
+            ->where('status', \App\Enums\TicketStatus::IN_PROGRESS->value)
+            ->exists();
+        if ($busy) {
+            return response()->json([
+                'error' => ['message' => 'PJ tidak bisa diganti selagi tim sedang melaksanakan tugas. Tunggu sampai tugas selesai.'],
+            ], 409);
+        }
+
         $validated = $request->validate($this->leaderRules());
 
         $team = DB::transaction(function () use ($team, $validated) {
@@ -211,6 +221,7 @@ final class TeamController extends Controller
         return $query->with(['leader:id,name,username,email,phone'])
             ->withCount([
                 'tickets as activeTicketCount' => fn ($q) => $q->whereIn('status', [TicketStatus::QUEUED->value, TicketStatus::IN_PROGRESS->value]),
+                'tickets as inProgressTicketCount' => fn ($q) => $q->where('status', TicketStatus::IN_PROGRESS->value),
                 'tickets as totalTicketCount',
             ]);
     }

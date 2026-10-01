@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToastStore } from "@/lib/toastStore";
-import { createTeam, updateTeam, type TeamInput } from "@/features/dashboard/dashboardApi";
+import { createTeam, updateTeam, changeTeamLeader, type TeamInput } from "@/features/dashboard/dashboardApi";
 import { BATAM_AREAS } from "@/lib/batamAreas";
 import type { Team } from "@/features/dashboard/dashboardTypes";
 import { buildLeaderInput, emptyLeaderForm, type LeaderForm } from "./LeaderFields";
@@ -24,8 +24,21 @@ export function useTeamForm({ team, onSuccess }: { team: Team | null; onSuccess:
     type: team?.type ?? "",
     description: team?.description ?? "",
   });
-  const [leader, setLeader] = useState<LeaderForm>(emptyLeaderForm);
+  const [leader, setLeader] = useState<LeaderForm>(
+    isEdit
+      ? { ...emptyLeaderForm, pjMode: "existing", userId: team?.leader?.id ?? null, userName: team?.leader?.name ?? "" }
+      : emptyLeaderForm,
+  );
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  /** PJ ikut disimpan saat submit — buat baru (create) atau ganti (edit, bila berubah). */
+  const leaderChanged = (() => {
+    if (!isEdit) return true;
+    if (leader.pjMode === "new") {
+      return Boolean(leader.pjName.trim() || leader.pjUsername.trim() || leader.pjPassword);
+    }
+    return leader.userId !== (team?.leader?.id ?? null);
+  })();
 
   /** Cari nama wilayah baku dari input (case-insensitive). */
   function canonicalDistrict(value: string): string | undefined {
@@ -40,7 +53,12 @@ export function useTeamForm({ team, onSuccess }: { team: Team | null; onSuccess:
         type: form.type.trim() || null,
         description: form.description.trim() || null,
       };
-      if (isEdit) return updateTeam(team.id, payload);
+      if (isEdit) {
+        const updated = await updateTeam(team.id, payload);
+        // Ganti PJ lewat endpoint khusus (bukan bagian update tim).
+        if (leaderChanged) return changeTeamLeader(team.id, buildLeaderInput(leader));
+        return updated;
+      }
       return createTeam({ ...payload, ...buildLeaderInput(leader) });
     },
     onSuccess: () => {
@@ -69,7 +87,7 @@ export function useTeamForm({ team, onSuccess }: { team: Team | null; onSuccess:
       // Wajib memilih dari daftar dropdown — isian bebas tidak diterima.
       errs.district = "Pilih lokasi/wilayah dari daftar.";
     }
-    if (!isEdit) {
+    if (leaderChanged) {
       if (leader.pjMode === "new") {
         if (!leader.pjName.trim()) errs.pj_name = "Nama PJ wajib diisi.";
         if (leader.pjUsername.trim().length < 3) errs.pj_username = "Username minimal 3 karakter.";

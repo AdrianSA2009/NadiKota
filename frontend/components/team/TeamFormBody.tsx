@@ -1,7 +1,6 @@
 "use client";
 
 import type { Team } from "@/features/dashboard/dashboardTypes";
-import { TeamStatusPill } from "./TeamStatusPill";
 import { LeaderFields } from "./LeaderFields";
 import { DistrictPicker } from "./DistrictPicker";
 import type { useTeamForm } from "./useTeamForm";
@@ -16,37 +15,15 @@ function SectionTitle({ children }: { children: string }) {
   return <h3 className="mb-3 border-b border-neutral-100 pb-2 text-xs font-semibold uppercase tracking-wide text-neutral-500">{children}</h3>;
 }
 
-/** Preview card tim (desktop) — mengikuti input yang sedang diketik. */
-function TeamPreview({ form, team }: { form: Form; team: Team | null }) {
-  const name = form.form.name.trim() || "Nama tim";
-  const district = form.form.district.trim() || "Lokasi / wilayah";
-  return (
-    <div className="rounded-xl border border-neutral-200 bg-neutral-0 p-3 shadow-sm">
-      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-neutral-500">Preview kartu tim</p>
-      <div className="flex items-center gap-3">
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary-50 text-sm font-bold text-primary-800" aria-hidden="true">
-          {name.charAt(0).toUpperCase()}
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-neutral-900">{name}</p>
-          <p className="truncate text-xs text-neutral-500">{district}</p>
-        </div>
-        <TeamStatusPill status={team?.status ?? "tersedia"} />
-      </div>
-      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-neutral-100 pt-2 text-xs text-neutral-500">
-        <span>PJ: {team?.leader?.name ?? "belum diatur"}</span>
-        <span>{team?.activeTicketCount ?? 0} tiket aktif</span>
-      </div>
-    </div>
-  );
-}
-
 /**
- * Isi form tim — SATU sumber untuk modal desktop (layout="modal", dua kolom + preview)
+ * Isi form tim — SATU sumber untuk modal desktop (layout="modal", dua kolom)
  * dan halaman mobile (layout="page", satu kolom bersection). Tombol aksi di shell masing-masing.
+ * `team` dipertahankan di tipe untuk kompatibilitas pemanggil — tidak dipakai isi form.
  */
 export function TeamFormBody({ state, team, layout }: { state: Form; team: Team | null; layout: "modal" | "page" }) {
   const { form, setForm, errors, leader, setLeader } = state;
+  // PJ dikunci selagi tim sedang mengerjakan tiket (in_progress) — backend ikut menolak.
+  const leaderLocked = state.isEdit && (team?.inProgressTicketCount ?? 0) > 0;
 
   const dataFields = (
     <>
@@ -65,14 +42,7 @@ export function TeamFormBody({ state, team, layout }: { state: Form; team: Team 
         />
         {errors.district && <p className={fieldError}>{errors.district}</p>}
       </div>
-      <div>
-        <label htmlFor={`${layout}-team-type`} className="text-sm font-medium text-neutral-900">Jenis tim <span className="font-normal text-neutral-400">(opsional)</span></label>
-        <input id={`${layout}-team-type`} value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} placeholder="mis. Pemeliharaan Jalan / PJU" className={input} />
-      </div>
-      <div>
-        <label htmlFor={`${layout}-team-description`} className="text-sm font-medium text-neutral-900">Deskripsi <span className="font-normal text-neutral-400">(opsional)</span></label>
-        <textarea id={`${layout}-team-description`} rows={2} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Catatan singkat tentang tim." className={input} />
-      </div>
+      {/* Jenis tim & deskripsi tidak lagi ditampilkan di form — nilai lama tetap terkirim apa adanya (lihat useTeamForm). */}
     </>
   );
 
@@ -83,12 +53,16 @@ export function TeamFormBody({ state, team, layout }: { state: Form; team: Team 
           <SectionTitle>Data tim</SectionTitle>
           <div className="space-y-4">{dataFields}</div>
         </section>
-        {!state.isEdit && (
-          <section>
-            <SectionTitle>Penanggung Jawab</SectionTitle>
+        <section>
+          <SectionTitle>{state.isEdit ? "Ganti Penanggung Jawab" : "Penanggung Jawab"}</SectionTitle>
+          {leaderLocked ? (
+            <p className="rounded-lg border border-warning-600 bg-warning-50 px-3 py-2 text-xs text-warning-800">
+              PJ tidak bisa diubah selagi tim sedang melaksanakan tugas. Tunggu sampai tugas selesai.
+            </p>
+          ) : (
             <LeaderFields value={leader} onChange={setLeader} errors={errors} />
-          </section>
-        )}
+          )}
+        </section>
       </div>
     );
   }
@@ -99,16 +73,15 @@ export function TeamFormBody({ state, team, layout }: { state: Form; team: Team 
         <SectionTitle>Data tim</SectionTitle>
         <div className="space-y-4">{dataFields}</div>
       </section>
-      <section className="space-y-4">
-        {!state.isEdit && (
-          <div>
-            <SectionTitle>Penanggung Jawab</SectionTitle>
-            <LeaderFields value={leader} onChange={setLeader} errors={errors} />
-          </div>
+      <section>
+        <SectionTitle>{state.isEdit ? "Ganti Penanggung Jawab" : "Penanggung Jawab"}</SectionTitle>
+        {leaderLocked ? (
+          <p className="rounded-lg border border-warning-600 bg-warning-50 px-3 py-2 text-xs text-warning-800">
+            PJ tidak bisa diubah selagi tim sedang melaksanakan tugas. Tunggu sampai tugas selesai.
+          </p>
+        ) : (
+          <LeaderFields value={leader} onChange={setLeader} errors={errors} />
         )}
-        <div className="hidden md:block">
-          <TeamPreview form={state} team={team} />
-        </div>
       </section>
     </div>
   );

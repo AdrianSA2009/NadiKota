@@ -18,7 +18,7 @@ final class Ticket extends Model
 
     protected $fillable = [
         'ticket_number', 'category', 'status', 'review_status',
-        'priority_score', 'priority_label', 'danger_level', 'assigned_team_id', 'location',
+        'priority_score', 'priority_label', 'danger_level', 'assigned_team_id', 'assignee_name', 'location',
         'verified_at', 'started_at', 'completed_at', 'cancelled_at', 'cancel_reason', 'proof_note', 'sla_due_at',
     ];
 

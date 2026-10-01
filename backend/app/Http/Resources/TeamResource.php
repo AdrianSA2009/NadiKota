@@ -43,6 +43,8 @@ final class TeamResource extends BaseResource
                 ];
             }),
             'activeTicketCount' => $active,
+            // Dipakai frontend mengunci aksi ganti PJ selagi tim sedang mengerjakan (in_progress).
+            'inProgressTicketCount' => (int) ($this->in_progress_ticket_count ?? 0),
             'totalTicketCount' => $total,
             'status' => $status,
             'createdAt' => $this->created_at?->toISOString(),

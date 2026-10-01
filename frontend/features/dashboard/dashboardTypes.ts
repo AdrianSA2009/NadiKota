@@ -27,6 +27,12 @@ export interface Ticket {
     model?: string | null;
   } | null;
   uniqueReporterCount: number;
+  /** Nama tim yang ditugaskan mengerjakan tiket (saat eager load). */
+  assignedTeamName?: string | null;
+  /** Nama-nama pelapor laporan pada tiket ini (bukan sekadar jumlah). */
+  reporterNames?: string[];
+  /** Nama PJ pelaksana (snapshot saat dispatch/mulai) — tidak berubah walau PJ tim diganti. */
+  assigneeName?: string | null;
   latitude: number;
   longitude: number;
   district: string;
@@ -71,6 +77,8 @@ export interface Team {
   userId: number | null;
   leader: TeamLeader | null;
   activeTicketCount: number;
+  /** Jumlah tiket berstatus in_progress — > 0 mengunci aksi ganti PJ. */
+  inProgressTicketCount?: number;
   totalTicketCount: number;
   status: TeamStatus;
   createdAt?: string;

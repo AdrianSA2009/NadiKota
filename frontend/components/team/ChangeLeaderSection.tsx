@@ -18,6 +18,8 @@ export function ChangeLeaderSection({ team, onDone, compact = false }: { team: T
   const showToast = useToastStore((s) => s.show);
   const [leader, setLeader] = useState<LeaderForm>(emptyLeaderForm);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  // PJ dikunci selagi tim sedang mengerjakan tiket (in_progress) — backend ikut menolak (409).
+  const locked = (team.inProgressTicketCount ?? 0) > 0;
 
   const mutation = useMutation({
     mutationFn: () => changeTeamLeader(team.id, buildLeaderInput(leader)),
@@ -55,6 +57,12 @@ export function ChangeLeaderSection({ team, onDone, compact = false }: { team: T
         Ganti Penanggung Jawab
       </h3>
       <p className="mt-1 text-xs text-neutral-500">PJ lama dikembalikan menjadi warga — riwayat laporannya tetap tersimpan.</p>
+      {locked ? (
+        <p className="mt-3 rounded-lg border border-warning-600 bg-warning-50 px-3 py-2 text-xs text-warning-800">
+          PJ tidak bisa diganti selagi tim sedang melaksanakan tugas. Tunggu sampai tugas selesai.
+        </p>
+      ) : (
+        <>
       {team.activeTicketCount > 0 && (
         <p className="mt-2 rounded-lg border border-warning-600 bg-warning-50 px-3 py-2 text-xs text-warning-800">
           Tim sedang memegang {team.activeTicketCount} tiket aktif — penugasan tetap melekat pada tim, bukan PJ.
@@ -66,6 +74,8 @@ export function ChangeLeaderSection({ team, onDone, compact = false }: { team: T
       <Button type="button" className="mt-3 w-full justify-center sm:w-auto" disabled={mutation.isPending} onClick={submit}>
         {mutation.isPending ? "Menyimpan..." : "Simpan PJ"}
       </Button>
+        </>
+      )}
     </section>
   );
 }
