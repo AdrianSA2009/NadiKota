@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { Gift, HandHeart, Landmark, LogOut, Map, Settings, ChevronUp, LayoutDashboard, ClipboardCheck, Truck, Users, ClipboardList, type LucideIcon } from "lucide-react";
+import { useUnreadBadges } from "@/features/notifications/useUnreadBadges";
 import { useKontribusiPanel } from "@/lib/kontribusiPanelStore";
 import { useTukarPoinPanel } from "@/lib/tukarPoinPanelStore";
 import { useNavGuard } from "@/lib/navigationGuard";
@@ -62,6 +63,8 @@ export function SidebarNav({ activePath, publicVisitor = false }: SidebarNavProp
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  // Badge merah per tab menu — jumlah notifikasi belum dibaca.
+  const { badgeFor, markPathRead } = useUnreadBadges();
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -148,6 +151,8 @@ export function SidebarNav({ activePath, publicVisitor = false }: SidebarNavProp
                 closePanel();
                 closeTukar();
                 setMenuOpen(false);
+                // Buka menu → notifikasi tipe tsb ditandai sudah dibaca (badge hilang).
+                markPathRead(href);
               }}
               className={`mb-1 flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
                 active ? "bg-primary-50 text-primary-800" : "text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900"
@@ -156,6 +161,11 @@ export function SidebarNav({ activePath, publicVisitor = false }: SidebarNavProp
             >
               <Icon className={`size-5 ${active ? "text-primary-800" : "text-neutral-400"}`} strokeWidth={active ? 2.2 : 1.8} aria-hidden="true" />
               {menuLabel}
+              {badgeFor(href) > 0 && (
+                <span className="ml-auto flex min-w-4 items-center justify-center rounded-full bg-danger-600 px-1 text-[10px] font-bold leading-4 text-neutral-0" aria-label={`${badgeFor(href)} notifikasi belum dibaca`}>
+                  {badgeFor(href) > 99 ? "99+" : badgeFor(href)}
+                </span>
+              )}
             </Link>
           );
           })

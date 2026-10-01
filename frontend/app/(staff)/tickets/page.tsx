@@ -289,31 +289,19 @@ function TicketDetail({ ticket }: { ticket: Ticket }) {
   const showAfter = isCompleted && Boolean(ticket.afterPhotoUrl);
 
   return <div className="border-t border-neutral-200 bg-neutral-50/60 p-4">
-      {/* Foto laporan (selalu bisa diklik); bukti sesudah hanya saat selesai */}
-      <div className={`grid gap-3 ${showAfter ? "sm:grid-cols-2" : ""}`}>
-        <figure className="overflow-hidden rounded-xl border border-neutral-200 bg-neutral-0 shadow-sm">
-          {ticket.photoUrl ? (
-            <button type="button" className="block w-full" onClick={() => setBeforeOpen(true)} aria-label={`Perbesar foto laporan ${ticket.ticketNumber}`}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={ticket.photoUrl} alt={`Foto laporan ${ticket.ticketNumber}`} className="h-44 w-full object-cover transition hover:opacity-90" />
-            </button>
-          ) : (
-            <span className="flex h-44 w-full items-center justify-center text-xs text-neutral-400">Tanpa foto</span>
-          )}
-          <figcaption className="flex items-center gap-1.5 border-t border-neutral-100 px-3 py-2 text-xs font-semibold text-neutral-600">
-            <ImagePlus className="size-3.5 text-neutral-400" aria-hidden="true" />Laporan{isCompleted ? " (sebelum)" : ""}
-          </figcaption>
-        </figure>
+      {/* Gambar tidak ditampilkan inline — hanya lewat tombol preview */}
+      <div className="flex flex-wrap gap-2">
+        {ticket.photoUrl && (
+          <Button type="button" variant="secondary" size="sm" onClick={() => setBeforeOpen(true)}>
+            <Eye className="mr-1.5 inline size-4" aria-hidden="true" />
+            Lihat gambar laporan{isCompleted ? " (sebelum)" : ""}
+          </Button>
+        )}
         {showAfter && (
-          <figure className="overflow-hidden rounded-xl border border-success-200 bg-neutral-0 shadow-sm">
-            <button type="button" className="block w-full" onClick={() => setProofOpen(true)} aria-label={`Perbesar bukti ${ticket.ticketNumber}`}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={ticket.afterPhotoUrl!} alt={`Bukti hasil perbaikan ${ticket.ticketNumber}`} className="h-44 w-full object-cover transition hover:opacity-90" />
-            </button>
-            <figcaption className="flex items-center gap-1.5 border-t border-success-100 px-3 py-2 text-xs font-semibold text-success-700">
-              <CheckCircle2 className="size-3.5" aria-hidden="true" />Hasil perbaikan (sesudah)
-            </figcaption>
-          </figure>
+          <Button type="button" variant="secondary" size="sm" className="border-success-200 text-success-700 hover:bg-success-50" onClick={() => setProofOpen(true)}>
+            <Eye className="mr-1.5 inline size-4" aria-hidden="true" />
+            Lihat bukti hasil (sesudah)
+          </Button>
         )}
       </div>
 

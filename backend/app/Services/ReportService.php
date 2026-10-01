@@ -87,6 +87,14 @@ class ReportService
             } else {
                 $ticket = $this->clustering->createTicketFromReport($report);
                 $report->update(['ticket_id' => $ticket->id]);
+
+                // Kabar ke admin: ada tiket baru masuk.
+                \App\Jobs\SendRoleNotification::dispatch(['admin', 'super_admin'], [
+                    'type' => 'ticket_new',
+                    'title' => 'Tiket baru masuk',
+                    'body' => "Tiket {$ticket->ticket_number} baru dibuat — " . ($report->category === 'pothole' ? 'Jalan berlubang' : ($report->category === 'street_light' ? 'PJU mati' : 'Lainnya')) . '.',
+                    'data' => ['ticket_id' => $ticket->id, 'ticket_number' => $ticket->ticket_number],
+                ])->onQueue('notifications');
             }
 
             // Dispatch AI validation hanya untuk laporan yang lolos filter

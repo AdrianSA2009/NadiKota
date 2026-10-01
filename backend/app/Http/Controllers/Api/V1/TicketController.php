@@ -293,6 +293,14 @@ class TicketController extends Controller
             SendTicketNotification::dispatch($ticket->id, 'queued', 'Tim ' . $team->name . ' ditugaskan — menunggu tim mulai mengerjakan.')
                 ->onQueue('notifications');
 
+            // Kabar ke anggota tim: tiket baru masuk ke tim mereka.
+            \App\Jobs\SendRoleNotification::dispatch([], [
+                'type' => 'ticket_received',
+                'title' => 'Tiket masuk',
+                'body' => "Tiket {$ticket->ticket_number} ditugaskan ke tim Anda.",
+                'data' => ['ticket_id' => $ticket->id, 'ticket_number' => $ticket->ticket_number],
+            ], $team->members()->pluck('users.id')->all())->onQueue('notifications')->afterCommit();
+
             return response()->json([
                 'data' => [
                     'ticket_id' => $ticket->id,
@@ -398,6 +406,14 @@ class TicketController extends Controller
             // Dispatch notifikasi ke semua warga terhubung
             SendTicketNotification::dispatch($ticket->id, 'in_progress', 'Tim mengirim bukti hasil perbaikan — menunggu verifikasi admin.')
                 ->onQueue('notifications');
+
+            // Kabar ke admin: ada bukti yang menunggu penilaian.
+            \App\Jobs\SendRoleNotification::dispatch(['admin', 'super_admin'], [
+                'type' => 'ticket_assessment',
+                'title' => 'Tiket membutuh penilaian',
+                'body' => "Bukti hasil perbaikan {$ticket->ticket_number} sudah dikirim — periksa dan nilai.",
+                'data' => ['ticket_id' => $ticket->id, 'ticket_number' => $ticket->ticket_number],
+            ])->onQueue('notifications')->afterCommit();
 
             return response()->json([
                 'data' => [

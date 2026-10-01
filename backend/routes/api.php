@@ -109,6 +109,7 @@ Route::prefix('v1')->group(function (): void {
 
         // Notification routes
         Route::get('/me/notifications', [NotificationController::class, 'index']);
+        Route::get('/me/notifications/unread-count', [NotificationController::class, 'unreadCount']);
         Route::put('/me/notifications/{notification}/read', [NotificationController::class, 'markRead']);
         Route::put('/me/notifications/read-all', [NotificationController::class, 'markAllRead']);
 

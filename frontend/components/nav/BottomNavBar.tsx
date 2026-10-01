@@ -8,6 +8,7 @@ import { useKontribusiPanel } from "@/lib/kontribusiPanelStore";
 import { useTukarPoinPanel } from "@/lib/tukarPoinPanelStore";
 import { useNavGuard } from "@/lib/navigationGuard";
 import { useAuthStore } from "@/features/auth/authStore";
+import { useUnreadBadges } from "@/features/notifications/useUnreadBadges";
 
 const STAFF = ["admin", "super_admin", "field_team"] as const;
 const ADMIN = ["admin", "super_admin"] as const;
@@ -48,6 +49,8 @@ export function BottomNavBar({ activePath, publicVisitor = false }: BottomNavBar
   const initialized = useAuthStore((s) => s.initialized);
   const showSkeleton = !initialized && !publicVisitor;
   const user = useAuthStore((s) => s.user);
+  // Badge merah per tab — jumlah notifikasi belum dibaca.
+  const { badgeFor, markPathRead } = useUnreadBadges();
   const visibleMenus = menus.filter((m) => {
     if (m.roles) return Boolean(user && m.roles.includes(user.role));
     if (m.hideRoles && user && m.hideRoles.includes(user.role)) return false;
@@ -139,11 +142,20 @@ export function BottomNavBar({ activePath, publicVisitor = false }: BottomNavBar
               }
               closePanel();
               closeTukar();
+              // Buka tab → notifikasi tipe tsb ditandai sudah dibaca (badge hilang).
+              markPathRead(href);
             }}
             className={`flex flex-1 flex-col items-center gap-0.5 py-2.5 text-xs font-medium transition-colors ${active ? "text-primary-800" : "text-neutral-500 hover:text-neutral-700"}`}
             aria-current={active ? "page" : undefined}
           >
-            <Icon className={`size-6 ${active ? "text-primary-800" : "text-neutral-400"}`} strokeWidth={active ? 2.2 : 1.8} aria-hidden="true" />
+            <span className="relative">
+              <Icon className={`size-6 ${active ? "text-primary-800" : "text-neutral-400"}`} strokeWidth={active ? 2.2 : 1.8} aria-hidden="true" />
+              {badgeFor(href) > 0 && (
+                <span className="absolute -right-1.5 -top-1 flex min-w-4 items-center justify-center rounded-full bg-danger-600 px-1 text-[10px] font-bold leading-4 text-neutral-0" aria-label={`${badgeFor(href)} notifikasi belum dibaca`}>
+                  {badgeFor(href) > 99 ? "99+" : badgeFor(href)}
+                </span>
+              )}
+            </span>
             <span>{label}</span>
             {active && <span className="mt-0.5 h-0.5 w-5 rounded-full bg-primary-800" aria-hidden="true" />}
           </Link>

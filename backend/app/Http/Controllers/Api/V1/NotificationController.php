@@ -22,6 +22,25 @@ class NotificationController extends Controller
     }
 
     /**
+     * GET /me/notifications/unread-count — jumlah belum dibaca (total + per tipe) untuk badge tab menu.
+     */
+    public function unreadCount(Request $request): JsonResponse
+    {
+        $unread = Notification::where('user_id', $request->user()->id)
+            ->where('is_read', false);
+
+        $byType = (clone $unread)
+            ->selectRaw('type, count(*) as total')
+            ->groupBy('type')
+            ->pluck('total', 'type');
+
+        return response()->json([
+            'count' => (clone $unread)->count(),
+            'by_type' => $byType,
+        ]);
+    }
+
+    /**
      * PUT /me/notifications/{notification}/read — tandai sudah dibaca.
      */
     public function markRead(Request $request, Notification $notification): JsonResponse
@@ -36,14 +55,23 @@ class NotificationController extends Controller
     }
 
     /**
-     * PUT /me/notifications/read-all — tandai semua sudah dibaca.
+     * PUT /me/notifications/read-all — tandai semua sudah dibaca (opsional: spesifik satu tipe).
      */
     public function markAllRead(Request $request): JsonResponse
     {
-        Notification::where('user_id', $request->user()->id)
-            ->where('is_read', false)
-            ->update(['is_read' => true, 'read_at' => now()]);
+        $validated = $request->validate([
+            'type' => 'nullable|string|max:50',
+        ]);
 
-        return response()->json(['message' => 'Semua notifikasi ditandai sudah dibaca.']);
+        $query = Notification::where('user_id', $request->user()->id)
+            ->where('is_read', false);
+
+        if (! empty($validated['type'])) {
+            $query->where('type', $validated['type']);
+        }
+
+        $query->update(['is_read' => true, 'read_at' => now()]);
+
+        return response()->json(['message' => 'Notifikasi ditandai sudah dibaca.']);
     }
 }
