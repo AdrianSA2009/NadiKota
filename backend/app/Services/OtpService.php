@@ -49,16 +49,19 @@ final class OtpService
 
         if ($payload['attempts'] >= $payload['max_attempts']) {
             Redis::del($key);
+
             return false;
         }
 
         if (hash('sha256', $otp) !== $payload['otp']) {
             $payload['attempts']++;
             Redis::setex($key, config('nadi-kota.otp.expiry_minutes', 5) * 60, json_encode($payload));
+
             return false;
         }
 
         Redis::del($key);
+
         return true;
     }
 }

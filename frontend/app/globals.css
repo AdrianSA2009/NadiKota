@@ -1,4 +1,7 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+
+/* nadi-kota: touch to force tailwind rebuild (rev6: search kiri atas) */
 
 :root {
   --color-primary-50: 240 245 250;
@@ -64,16 +67,114 @@
   --color-neutral-50: rgb(var(--color-neutral-50));
   --color-neutral-100: rgb(var(--color-neutral-100));
   --color-neutral-200: rgb(var(--color-neutral-200));
+  --color-neutral-300: rgb(var(--color-neutral-300));
+  --color-neutral-400: rgb(var(--color-neutral-400));
   --color-neutral-500: rgb(var(--color-neutral-500));
+  --color-neutral-600: rgb(var(--color-neutral-600));
   --color-neutral-700: rgb(var(--color-neutral-700));
+  --color-neutral-800: rgb(var(--color-neutral-800));
   --color-neutral-900: rgb(var(--color-neutral-900));
+  --color-success-50: rgb(var(--color-success-50));
+  --color-success-600: rgb(var(--color-success-600));
   --color-success-700: rgb(var(--color-success-700));
+  --color-danger-50: rgb(var(--color-danger-50));
+  --color-danger-600: rgb(var(--color-danger-600));
   --color-danger-700: rgb(var(--color-danger-700));
+  --color-warning-50: rgb(var(--color-warning-50));
+  --color-warning-600: rgb(var(--color-warning-600));
   --color-warning-800: rgb(var(--color-warning-800));
+  --color-info-50: rgb(var(--color-info-50));
+  --color-info-600: rgb(var(--color-info-600));
   --color-info-800: rgb(var(--color-info-800));
+  --color-action-50: rgb(var(--color-action-50));
+  --color-action-500: rgb(var(--color-action-500));
+  --color-background: rgb(255 255 255);
+  --color-foreground: rgb(var(--color-neutral-900));
+  --color-card: rgb(255 255 255);
+  --color-card-foreground: rgb(var(--color-neutral-900));
+  --color-popover: rgb(255 255 255);
+  --color-popover-foreground: rgb(var(--color-neutral-900));
+  --color-secondary: rgb(var(--color-neutral-100));
+  --color-secondary-foreground: rgb(var(--color-neutral-900));
+  --color-muted: rgb(var(--color-neutral-100));
+  --color-muted-foreground: rgb(var(--color-neutral-500));
+  --color-border: rgb(var(--color-neutral-200));
+  --color-input: rgb(var(--color-neutral-300));
+  --color-ring: rgb(var(--color-accent-500));
 }
 
 :focus-visible {
   outline: 3px solid rgb(var(--color-accent-500));
   outline-offset: 2px;
 }
+
+html, body { min-height: 100%; }
+body { margin: 0; background: rgb(var(--color-neutral-50)); color: rgb(var(--color-neutral-700)); }
+
+.map-controls-custom > div {
+  overflow: hidden;
+  border: 1px solid rgb(var(--color-neutral-200));
+  border-radius: 0.9rem;
+  background: rgb(var(--color-neutral-0));
+  box-shadow: 0 3px 12px rgb(15 23 42 / 0.18);
+}
+.map-controls-custom > div > button {
+  background: rgb(var(--color-neutral-0));
+  color: rgb(var(--color-neutral-800));
+  transition: background-color 150ms ease;
+}
+.map-controls-custom > div > button:hover { background: rgb(var(--color-neutral-100)); }
+.maplibregl-ctrl-attrib { background: rgb(var(--color-neutral-0) / 0.88) !important; }
+.maplibregl-popup-content { border: 1px solid rgb(var(--color-neutral-200)); border-radius: 0.75rem; box-shadow: 0 8px 24px rgb(15 23 42 / 0.14); }
+@media (max-width: 767px) { .map-controls-custom { bottom: 5.25rem !important; } }
+
+.maplibregl-ctrl-bottom-right, .maplibregl-ctrl-bottom-left { 
+    display: none !important; 
+}
+
+@keyframes sheet-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+/* Hide scrollbar but keep scroll functionality */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Alias (dipakai halaman List Tiket) — sama dengan .scrollbar-hide */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Audit Fase 2 — kursor seragam: elemen interaktif pointer, nonaktif not-allowed.
+   Di @layer base agar utility kustom (mis. cursor-zoom-in) tetap menang. */
+@layer base {
+  button:not(:disabled),
+  a[href],
+  select:not(:disabled),
+  summary,
+  label[for],
+  input[type="checkbox"]:not(:disabled),
+  input[type="radio"]:not(:disabled),
+  input[type="file"]:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  [aria-disabled="true"],
+  select:disabled,
+  input:disabled {
+    cursor: not-allowed;
+  }
+}
+

@@ -2,6 +2,7 @@
 
 namespace App\Repositories;
 
+use App\Enums\TicketStatus;
 use App\Models\Report;
 use App\Models\User;
 use App\Repositories\Contracts\ReportRepository;
@@ -24,7 +25,7 @@ final class EloquentReportRepository implements ReportRepository
 
         return DB::table('tickets')
             ->where('category', $category)
-            ->whereIn('status', ['reported', 'validated', 'in_queue', 'in_progress'])
+            ->whereIn('status', [TicketStatus::REPORTED, TicketStatus::VERIFIED, TicketStatus::QUEUED, TicketStatus::IN_PROGRESS])
             ->whereRaw(
                 'ST_DWithin(location::geography, ST_SetSRID(ST_MakePoint(?, ?), 4326)::geography, ?)',
                 [$longitude, $latitude, $radiusMeters]
@@ -47,7 +48,7 @@ final class EloquentReportRepository implements ReportRepository
 
         return DB::table('tickets')
             ->where('category', $category)
-            ->whereIn('status', ['reported', 'validated', 'in_queue', 'in_progress'])
+            ->whereIn('status', [TicketStatus::REPORTED, TicketStatus::VERIFIED, TicketStatus::QUEUED, TicketStatus::IN_PROGRESS])
             ->whereRaw(
                 'ST_DWithin(location::geography, ST_SetSRID(ST_MakePoint(?, ?), 4326)::geography, ?)',
                 [$longitude, $latitude, $radiusMeters]

@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 final class Photo extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
         'report_id', 'ticket_id', 'type', 'object_key',
         'sha256', 'mime_type', 'size_bytes', 'expires_at',

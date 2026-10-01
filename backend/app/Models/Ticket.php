@@ -4,8 +4,9 @@ namespace App\Models;
 
 use App\Enums\PriorityLabel;
 use App\Enums\TicketStatus;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -13,10 +14,12 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 
 final class Ticket extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
         'ticket_number', 'category', 'status', 'review_status',
-        'priority_score', 'priority_label', 'assigned_team_id',
-        'verified_at', 'started_at', 'completed_at', 'sla_due_at',
+        'priority_score', 'priority_label', 'danger_level', 'assigned_team_id', 'location',
+        'verified_at', 'started_at', 'completed_at', 'cancelled_at', 'cancel_reason', 'proof_note', 'sla_due_at',
     ];
 
     protected function casts(): array
@@ -28,13 +31,14 @@ final class Ticket extends Model
             'verified_at' => 'datetime',
             'started_at' => 'datetime',
             'completed_at' => 'datetime',
+            'cancelled_at' => 'datetime',
             'sla_due_at' => 'datetime',
         ];
     }
 
     public function scopeActive(Builder $query): Builder
     {
-        return $query->whereNotIn('status', [TicketStatus::COMPLETED, TicketStatus::REJECTED]);
+        return $query->whereNotIn('status', [TicketStatus::COMPLETED, TicketStatus::REJECTED, TicketStatus::CANCELLED]);
     }
 
     public function team(): BelongsTo

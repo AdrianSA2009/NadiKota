@@ -4,13 +4,16 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Enums\TicketStatus;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\TicketResource;
 use App\Jobs\SendTicketNotification;
 use App\Models\AuditLog;
+use App\Models\CitizenConfirmation;
 use App\Models\Dispatch;
+use App\Models\Team;
 use App\Models\Ticket;
-use App\Models\TicketStatusHistory;
 use App\Services\ClusteringService;
 use App\Services\PriorityService;
+use App\Support\PhotoUrl;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -18,11 +21,27 @@ use Illuminate\Support\Facades\Gate;
 
 class TicketController extends Controller
 {
+    public function map(Request $request): JsonResponse
+    {
+        $tickets = Ticket::query()
+            ->with(['reports.photos', 'reports.latestAiValidation'])
+            ->withCount('reporters')
+            ->whereNotNull('location')
+            ->whereNotIn('status', [TicketStatus::REJECTED, TicketStatus::CANCELLED])
+            ->orderByDesc('priority_score')
+            ->limit(min($request->integer('limit', 200), 500))
+            ->get();
+
+        return response()->json(['data' => TicketResource::collection($tickets)]);
+    }
+
     public function index(Request $request): JsonResponse
     {
         Gate::authorize('viewAny', Ticket::class);
 
-        $query = Ticket::orderByDesc('priority_score');
+        // eager load foto laporan + AI + bukti after (kartu review/verifikasi) — hindari N+1
+        $query = Ticket::with(['reports.photos', 'reports.latestAiValidation', 'photos'])
+            ->orderByDesc('priority_score');
 
         if ($request->filled('status')) {
             $query->where('status', $request->input('status'));
@@ -30,19 +49,23 @@ class TicketController extends Controller
         if ($request->filled('category')) {
             $query->where('category', $request->input('category'));
         }
-        if ($request->filled('district')) {
-            $query->where('district', $request->input('district'));
-        }
         if ($request->filled('from') && $request->filled('to')) {
             $query->whereBetween('created_at', [$request->input('from'), $request->input('to')]);
         }
 
-        $tickets = $query->paginate($request->integer('per_page', 20));
+        $tickets = $query->withCount('reporters')->paginate($request->integer('per_page', 20));
 
-        return response()->json($tickets);
+        return response()->json([
+            'data' => TicketResource::collection($tickets),
+            'meta' => [
+                'currentPage' => $tickets->currentPage(),
+                'lastPage' => $tickets->lastPage(),
+                'total' => $tickets->total(),
+            ],
+        ]);
     }
 
-    public function show(Ticket $ticket): JsonResponse
+    public function show(Request $request, Ticket $ticket): JsonResponse
     {
         Gate::authorize('view', $ticket);
 
@@ -56,23 +79,26 @@ class TicketController extends Controller
 
         $reporterCount = $ticket->reporters()->count();
 
+        // Foto laporan (laporan → photos.report_id) untuk ringkasan dispatch.
+        $ticket->load('reports.photos');
+
         return response()->json([
-            'data' => [
-                'id' => $ticket->id,
-                'ticket_number' => $ticket->ticket_number,
-                'category' => $ticket->category,
-                'status' => $ticket->status,
-                'priority_score' => $ticket->priority_score,
-                'priority_label' => $ticket->priority_label,
-                'reporter_count' => $reporterCount,
-                'latitude' => null,
-                'longitude' => null,
-                'reports' => $ticket->reports,
-                'photos' => $ticket->photos,
-                'priority_snapshots' => $ticket->prioritySnapshots,
-                'status_histories' => $ticket->statusHistories,
+            'data' => (new TicketResource($ticket->loadCount('reporters')))->toArray($request) + [
+                'reports' => $ticket->reports->map(fn ($r) => [
+                    'id' => $r->id,
+                    'status' => $r->status instanceof \BackedEnum ? $r->status->value : $r->status,
+                    'category' => $r->category instanceof \BackedEnum ? $r->category->value : $r->category,
+                    'createdAt' => $r->created_at,
+                ]),
+                'photos' => $ticket->photos->map(fn ($p) => [
+                    'id' => $p->id,
+                    'type' => $p->type,
+                    'objectKey' => $p->object_key,
+                    'photoUrl' => PhotoUrl::make($p->object_key),
+                ]),
+                'prioritySnapshots' => $ticket->prioritySnapshots,
+                'statusHistories' => $ticket->statusHistories,
                 'dispatches' => $ticket->dispatches,
-                'created_at' => $ticket->created_at,
             ],
         ]);
     }
@@ -132,21 +158,24 @@ class TicketController extends Controller
         $validated = $request->validate([
             'decision' => 'required|in:approved,rejected',
             'reason' => 'required|string|min:3|max:500',
+            'danger_level' => 'nullable|in:bahaya,hati-hati',
         ]);
 
         return DB::transaction(function () use ($ticket, $validated, $request) {
             $before = [
                 'status' => $ticket->status->value,
                 'review_status' => $ticket->review_status,
+                'danger_level' => $ticket->danger_level,
             ];
 
             $newStatus = $validated['decision'] === 'approved'
-                ? TicketStatus::VALIDATED
+                ? TicketStatus::QUEUED
                 : TicketStatus::REJECTED;
 
             $ticket->update([
                 'status' => $newStatus,
                 'review_status' => $validated['decision'],
+                'danger_level' => $validated['danger_level'] ?? $ticket->danger_level,
                 'verified_at' => $validated['decision'] === 'approved' ? now() : null,
             ]);
 
@@ -167,6 +196,7 @@ class TicketController extends Controller
                     'status' => $newStatus->value,
                     'decision' => $validated['decision'],
                     'reason' => $validated['reason'],
+                    'danger_level' => $ticket->danger_level,
                 ],
                 'request_id' => $request->header('X-Request-Id'),
             ]);
@@ -196,7 +226,7 @@ class TicketController extends Controller
             'note' => 'nullable|string|max:500',
         ]);
 
-        $team = \App\Models\Team::findOrFail($validated['team_id']);
+        $team = Team::findOrFail($validated['team_id']);
 
         if (! $team->is_active) {
             return response()->json([
@@ -205,22 +235,34 @@ class TicketController extends Controller
         }
 
         return DB::transaction(function () use ($ticket, $validated, $request, $team) {
+            // Kunci baris: cegah dua admin dispatch/reassign tiket yang sama bersamaan.
+            $locked = Ticket::whereKey($ticket->id)->lockForUpdate()->first();
+            if ($locked === null || $locked->status !== TicketStatus::QUEUED) {
+                return response()->json([
+                    'error' => ['message' => 'Hanya tiket berstatus antrean yang bisa ditugaskan — tiket yang sudah dikerjakan tidak bisa diubah timnya.'],
+                ], 409);
+            }
+            if ($locked->assigned_team_id === $team->id) {
+                return response()->json([
+                    'error' => ['message' => 'Tiket sudah ditugaskan ke tim tersebut.'],
+                ], 409);
+            }
+
             $before = [
-                'status' => $ticket->status->value,
-                'assigned_team_id' => $ticket->assigned_team_id,
+                'status' => $locked->status->value,
+                'assigned_team_id' => $locked->assigned_team_id,
             ];
 
-            $ticket->update([
-                'status' => TicketStatus::IN_PROGRESS,
+            // Penugasan TIDAK langsung mengerjakan — tim menekan "Mulai" (status tetap queued).
+            $locked->update([
                 'assigned_team_id' => $team->id,
-                'started_at' => now(),
             ]);
 
-            $ticket->statusHistories()->create([
+            $locked->statusHistories()->create([
                 'from_status' => $before['status'],
-                'to_status' => TicketStatus::IN_PROGRESS->value,
+                'to_status' => TicketStatus::QUEUED->value,
                 'actor_id' => $request->user()->id,
-                'note' => 'Dispatch ke ' . $team->name,
+                'note' => 'Dispatch ke ' . $team->name . ' — menunggu tim mulai.',
             ]);
 
             Dispatch::create([
@@ -237,7 +279,7 @@ class TicketController extends Controller
                 'entity_id' => $ticket->id,
                 'before' => $before,
                 'after' => [
-                    'status' => TicketStatus::IN_PROGRESS->value,
+                    'status' => TicketStatus::QUEUED->value,
                     'assigned_team_id' => $team->id,
                     'team_name' => $team->name,
                 ],
@@ -245,18 +287,18 @@ class TicketController extends Controller
             ]);
 
             // Dispatch notifikasi ke warga dan tim
-            SendTicketNotification::dispatch($ticket->id, 'in_progress', 'Tim ' . $team->name . ' ditugaskan.')
+            SendTicketNotification::dispatch($ticket->id, 'queued', 'Tim ' . $team->name . ' ditugaskan — menunggu tim mulai mengerjakan.')
                 ->onQueue('notifications');
 
             return response()->json([
                 'data' => [
                     'ticket_id' => $ticket->id,
-                    'status' => TicketStatus::IN_PROGRESS->value,
+                    'status' => TicketStatus::QUEUED->value,
                     'team' => [
                         'id' => $team->id,
                         'name' => $team->name,
                     ],
-                    'message' => 'Tiket ditugaskan ke ' . $team->name . '.',
+                    'message' => 'Tiket ditugaskan ke ' . $team->name . ' — menunggu tim mulai.',
                 ],
             ]);
         });
@@ -271,19 +313,35 @@ class TicketController extends Controller
         $teamIds = $user->teams()->pluck('teams.id');
 
         $tickets = Ticket::whereIn('assigned_team_id', $teamIds)
-            ->where('status', TicketStatus::IN_PROGRESS)
+            ->whereIn('status', [TicketStatus::QUEUED->value, TicketStatus::IN_PROGRESS->value])
             ->orderByDesc('created_at')
             ->paginate($request->integer('per_page', 20));
 
-        return response()->json($tickets);
+        // Pakai TicketResource (konsisten dgn frontend): camelCase + latitude/longitude
+        // (model mentah hanya punya created_at & geometri location → "invalid date"/lokasi kosong).
+        return response()->json([
+            'data' => TicketResource::collection($tickets),
+            'meta' => [
+                'currentPage' => $tickets->currentPage(),
+                'lastPage' => $tickets->lastPage(),
+                'total' => $tickets->total(),
+            ],
+        ]);
     }
 
     /**
-     * POST /tickets/{ticket}/complete — selesaikan tiket dengan foto sesudah.
+     * POST /tickets/{ticket}/complete — tim mengirim bukti hasil perbaikan.
+     * Status TIDAK berubah (tetap in_progress) — menunggu verifikasi admin (finalize).
      */
     public function complete(Request $request, Ticket $ticket): JsonResponse
     {
         Gate::authorize('complete', $ticket);
+
+        if ($ticket->status !== TicketStatus::IN_PROGRESS) {
+            return response()->json([
+                'error' => ['message' => 'Hanya tiket dalam perbaikan yang dapat diselesaikan.'],
+            ], 409);
+        }
 
         $validated = $request->validate([
             'after_photo' => 'required|image|max:5120',
@@ -295,10 +353,10 @@ class TicketController extends Controller
                 'status' => $ticket->status->value,
             ];
 
-            // Simpan foto "after" ke S3
+            // Simpan foto "after" ke disk
             $photo = $request->file('after_photo');
             $objectKey = 'photos/after/' . now()->format('Y/m/d') . '/' . uniqid() . '.' . $photo->getClientOriginalExtension();
-            $photo->storeAs('photos/after/' . now()->format('Y/m/d'), basename($objectKey), 's3');
+            $photo->storeAs('photos/after/' . now()->format('Y/m/d'), basename($objectKey));
 
             $ticket->photos()->create([
                 'type' => 'after',
@@ -309,20 +367,87 @@ class TicketController extends Controller
             ]);
 
             $ticket->update([
+                'status' => TicketStatus::IN_PROGRESS,
+                'review_status' => 'submitted',
+                'proof_note' => null, // bukti baru menggantikan yang ditolak
+            ]);
+
+            $ticket->statusHistories()->create([
+                'from_status' => $before['status'],
+                'to_status' => TicketStatus::IN_PROGRESS->value,
+                'actor_id' => $request->user()->id,
+                'note' => $validated['note'] ?? 'Bukti hasil perbaikan dikirim — menunggu verifikasi admin.',
+            ]);
+
+            AuditLog::create([
+                'actor_id' => $request->user()->id,
+                'action' => 'submit_ticket_proof',
+                'entity_type' => Ticket::class,
+                'entity_id' => $ticket->id,
+                'before' => $before,
+                'after' => [
+                    'status' => TicketStatus::IN_PROGRESS->value,
+                    'review_status' => 'submitted',
+                ],
+                'request_id' => $request->header('X-Request-Id'),
+            ]);
+
+            // Dispatch notifikasi ke semua warga terhubung
+            SendTicketNotification::dispatch($ticket->id, 'in_progress', 'Tim mengirim bukti hasil perbaikan — menunggu verifikasi admin.')
+                ->onQueue('notifications');
+
+            return response()->json([
+                'data' => [
+                    'ticket_id' => $ticket->id,
+                    'status' => TicketStatus::IN_PROGRESS->value,
+                    'review_status' => 'submitted',
+                    'message' => 'Bukti hasil perbaikan terkirim — menunggu verifikasi admin.',
+                ],
+            ]);
+        });
+    }
+
+    /** POST /tickets/{ticket}/cancel — admin membatalkan tiket aktif dengan alasan audit. */
+    /**
+     * POST /tickets/{ticket}/finalize — admin memeriksa bukti tim lalu menyelesaikan tiket.
+     */
+    public function finalize(Request $request, Ticket $ticket): JsonResponse
+    {
+        Gate::authorize('finalize', $ticket);
+
+        if ($ticket->status !== TicketStatus::IN_PROGRESS) {
+            return response()->json([
+                'error' => ['message' => 'Hanya tiket dalam perbaikan yang bisa diselesaikan.'],
+            ], 409);
+        }
+        if ($ticket->review_status !== 'submitted' || ! $ticket->photos()->where('type', 'after')->exists()) {
+            return response()->json([
+                'error' => ['message' => 'Belum ada bukti hasil perbaikan dari tim.'],
+            ], 422);
+        }
+
+        return DB::transaction(function () use ($ticket, $request) {
+            $before = [
+                'status' => $ticket->status->value,
+                'review_status' => $ticket->review_status,
+            ];
+
+            $ticket->update([
                 'status' => TicketStatus::COMPLETED,
                 'completed_at' => now(),
+                'review_status' => 'approved',
             ]);
 
             $ticket->statusHistories()->create([
                 'from_status' => $before['status'],
                 'to_status' => TicketStatus::COMPLETED->value,
                 'actor_id' => $request->user()->id,
-                'note' => $validated['note'] ?? 'Perbaikan selesai.',
+                'note' => 'Hasil perbaikan diverifikasi admin.',
             ]);
 
             AuditLog::create([
                 'actor_id' => $request->user()->id,
-                'action' => 'complete_ticket',
+                'action' => 'finalize_ticket',
                 'entity_type' => Ticket::class,
                 'entity_id' => $ticket->id,
                 'before' => $before,
@@ -333,7 +458,6 @@ class TicketController extends Controller
                 'request_id' => $request->header('X-Request-Id'),
             ]);
 
-            // Dispatch notifikasi ke semua warga terhubung
             SendTicketNotification::dispatch($ticket->id, 'completed', 'Perbaikan telah selesai.')
                 ->onQueue('notifications');
 
@@ -342,6 +466,153 @@ class TicketController extends Controller
                     'ticket_id' => $ticket->id,
                     'status' => TicketStatus::COMPLETED->value,
                     'message' => 'Tiket berhasil diselesaikan.',
+                ],
+            ]);
+        });
+    }
+
+    /**
+     * POST /tickets/{ticket}/start — tim menekan "Mulai" untuk menandai tiket sedang dikerjakan.
+     */
+    public function start(Request $request, Ticket $ticket): JsonResponse
+    {
+        Gate::authorize('start', $ticket);
+
+        return DB::transaction(function () use ($ticket, $request) {
+            // Kunci baris — cegah dua anggota tim menekan Mulai bersamaan.
+            $locked = Ticket::whereKey($ticket->id)->lockForUpdate()->first();
+            if ($locked === null || $locked->status !== TicketStatus::QUEUED || $locked->assigned_team_id === null) {
+                return response()->json([
+                    'error' => ['message' => 'Hanya tiket yang sudah ditugaskan dan belum mulai yang bisa dimulai.'],
+                ], 409);
+            }
+
+            $locked->update([
+                'status' => TicketStatus::IN_PROGRESS,
+                'started_at' => now(),
+            ]);
+
+            $locked->statusHistories()->create([
+                'from_status' => TicketStatus::QUEUED->value,
+                'to_status' => TicketStatus::IN_PROGRESS->value,
+                'actor_id' => $request->user()->id,
+                'note' => 'Tim mulai mengerjakan.',
+            ]);
+
+            AuditLog::create([
+                'actor_id' => $request->user()->id,
+                'action' => 'start_ticket',
+                'entity_type' => Ticket::class,
+                'entity_id' => $ticket->id,
+                'before' => ['status' => TicketStatus::QUEUED->value],
+                'after' => ['status' => TicketStatus::IN_PROGRESS->value, 'started_at' => now()->toIso8601String()],
+                'request_id' => $request->header('X-Request-Id'),
+            ]);
+
+            SendTicketNotification::dispatch($ticket->id, 'in_progress', 'Tim mulai mengerjakan.')
+                ->onQueue('notifications');
+
+            return response()->json([
+                'data' => [
+                    'ticket_id' => $ticket->id,
+                    'status' => TicketStatus::IN_PROGRESS->value,
+                    'message' => 'Tiket dimulai. Selamat bertugas!',
+                ],
+            ]);
+        });
+    }
+
+    /**
+     * POST /tickets/{ticket}/reject-proof — admin menolak bukti hasil perbaikan (kurang valid).
+     * Status kembali dibaca sebagai pekerjaan berjalan; tim wajib kirim foto ulang.
+     */
+    public function rejectProof(Request $request, Ticket $ticket): JsonResponse
+    {
+        Gate::authorize('rejectProof', $ticket);
+
+        if ($ticket->review_status !== 'submitted') {
+            return response()->json([
+                'error' => ['message' => 'Hanya bukti berstatus menunggu penilaian yang bisa ditolak.'],
+            ], 409);
+        }
+
+        $validated = $request->validate([
+            'reason' => 'required|string|min:3|max:500',
+        ]);
+
+        $ticket->update([
+            'review_status' => 'proof_rejected',
+            'proof_note' => $validated['reason'],
+        ]);
+
+        $ticket->statusHistories()->create([
+            'from_status' => $ticket->status->value,
+            'to_status' => $ticket->status->value,
+            'actor_id' => $request->user()->id,
+            'note' => 'Bukti hasil perbaikan ditolak admin: ' . $validated['reason'],
+        ]);
+
+        AuditLog::create([
+            'actor_id' => $request->user()->id,
+            'action' => 'reject_ticket_proof',
+            'entity_type' => Ticket::class,
+            'entity_id' => $ticket->id,
+            'before' => ['review_status' => 'submitted'],
+            'after' => ['review_status' => 'proof_rejected', 'reason' => $validated['reason']],
+            'request_id' => $request->header('X-Request-Id'),
+        ]);
+
+        return response()->json([
+            'data' => [
+                'ticket_id' => $ticket->id,
+                'review_status' => 'proof_rejected',
+                'message' => 'Bukti ditolak — tim diminta mengirim foto ulang.',
+            ],
+        ]);
+    }
+
+    public function cancel(Request $request, Ticket $ticket): JsonResponse
+    {
+        Gate::authorize('cancel', $ticket);
+
+        $validated = $request->validate([
+            'reason' => 'required|string|min:3|max:500',
+        ]);
+
+        return DB::transaction(function () use ($ticket, $validated, $request) {
+            $before = ['status' => $ticket->status->value];
+
+            $ticket->update([
+                'status' => TicketStatus::CANCELLED,
+                'cancelled_at' => now(),
+                'cancel_reason' => $validated['reason'],
+            ]);
+            $ticket->statusHistories()->create([
+                'from_status' => $before['status'],
+                'to_status' => TicketStatus::CANCELLED->value,
+                'actor_id' => $request->user()->id,
+                'note' => $validated['reason'],
+            ]);
+            AuditLog::create([
+                'actor_id' => $request->user()->id,
+                'action' => 'cancel_ticket',
+                'entity_type' => Ticket::class,
+                'entity_id' => $ticket->id,
+                'before' => $before,
+                'after' => [
+                    'status' => TicketStatus::CANCELLED->value,
+                    'reason' => $validated['reason'],
+                ],
+                'request_id' => $request->header('X-Request-Id'),
+            ]);
+            SendTicketNotification::dispatch($ticket->id, 'cancelled', $validated['reason'])
+                ->onQueue('notifications');
+
+            return response()->json([
+                'data' => [
+                    'ticket_id' => $ticket->id,
+                    'status' => TicketStatus::CANCELLED->value,
+                    'message' => 'Tiket dibatalkan.',
                 ],
             ]);
         });
@@ -362,7 +633,7 @@ class TicketController extends Controller
         $user = $request->user();
 
         // Cek apakah sudah konfirmasi
-        $existing = \App\Models\CitizenConfirmation::where('ticket_id', $ticket->id)
+        $existing = CitizenConfirmation::where('ticket_id', $ticket->id)
             ->where('user_id', $user->id)
             ->first();
 
@@ -372,7 +643,7 @@ class TicketController extends Controller
             ], 409);
         }
 
-        \App\Models\CitizenConfirmation::create([
+        CitizenConfirmation::create([
             'ticket_id' => $ticket->id,
             'user_id' => $user->id,
             'confirmed' => $validated['confirmed'],

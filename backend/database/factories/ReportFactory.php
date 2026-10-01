@@ -5,6 +5,7 @@ namespace Database\Factories;
 use App\Enums\ReportCategory;
 use App\Enums\ReportStatus;
 use App\Models\Report;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -17,7 +18,7 @@ class ReportFactory extends Factory
     public function definition(): array
     {
         return [
-            'user_id' => \App\Models\User::factory(),
+            'user_id' => User::factory(),
             'category' => ReportCategory::POTHOLE,
             'status' => ReportStatus::SUBMITTED,
             'latitude' => 1.1191,

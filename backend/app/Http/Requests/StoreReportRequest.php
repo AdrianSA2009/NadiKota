@@ -25,7 +25,7 @@ final class StoreReportRequest extends FormRequest
             'category' => ['required', Rule::enum(ReportCategory::class)],
             'latitude' => ['required', 'numeric', "between:{$latMin},{$latMax}"],
             'longitude' => ['required', 'numeric', "between:{$lngMin},{$lngMax}"],
-            'photo' => ['required', 'image', "max:" . ($maxSize / 1024)],
+            'photo' => ['required', 'image', 'max:' . ($maxSize / 1024)],
         ];
     }
 

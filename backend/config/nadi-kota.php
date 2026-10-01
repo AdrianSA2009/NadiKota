@@ -22,13 +22,19 @@ return [
     | Model, timeout, prompt version, dan ambang keputusan untuk validasi foto.
     */
     'ai' => [
-        'model' => env('OPENAI_MODEL', 'gpt-4o-mini'),
+        'model' => env('OPENAI_MODEL', 'cx/gpt-5.6-luna'),
+        'base_url' => env('OPENAI_BASE_URL', 'http://localhost:20128/v1'),
         'timeout_seconds' => (int) env('AI_TIMEOUT_SECONDS', 20),
         'max_daily_calls' => (int) env('AI_MAX_DAILY_CALLS', 5000),
-        'prompt_version' => env('AI_PROMPT_VERSION', 'v1.0'),
+        'prompt_version' => env('AI_PROMPT_VERSION', 'v1.2'),
         'thresholds' => [
             'accepted_min_confidence' => (float) env('AI_ACCEPTED_MIN_CONFIDENCE', 0.7),
             'rejected_max_confidence' => (float) env('AI_REJECTED_MAX_CONFIDENCE', 0.3),
+        ],
+        'rephoto' => [
+            'score_threshold' => (float) env('AI_REPHOTO_SCORE_THRESHOLD', 0.8),
+            'edge_dark_ratio' => (float) env('AI_REPHOTO_EDGE_DARK_RATIO', 62),
+            'periodic_correlation' => (float) env('AI_REPHOTO_PERIODIC_CORRELATION', 0.9),
         ],
     ],
 
@@ -99,6 +105,10 @@ return [
             'min_lng' => (float) env('GEO_MIN_LNG', 103.6),
             'max_lng' => (float) env('GEO_MAX_LNG', 104.2),
         ],
+        // Deteksi fake GPS (sinyal, bukan bukti — hasilnya needs_review)
+        'exif_mismatch_meters' => (float) env('GEO_EXIF_MISMATCH_METERS', 500),
+        'ip_mismatch_km' => (float) env('GEO_IP_MISMATCH_KM', 100),
+        'ip_lookup_url' => env('GEO_IP_LOOKUP_URL', 'http://ip-api.com/json'),
     ],
 
     /*
@@ -111,6 +121,16 @@ return [
         'validate_image_tries' => (int) env('VALIDATE_IMAGE_TRIES', 3),
         'validate_image_timeout' => (int) env('VALIDATE_IMAGE_TIMEOUT', 30),
         'notification_tries' => (int) env('NOTIFICATION_TRIES', 3),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Poin Kontribusi (FR-17)
+    |--------------------------------------------------------------------------
+    | Poin diberikan kepada warga ketika laporan diterima AI.
+    */
+    'points' => [
+        'report_accepted' => (int) env('POINTS_REPORT_ACCEPTED', 10),
     ],
 
 ];

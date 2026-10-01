@@ -6,6 +6,7 @@ use App\Enums\PriorityLabel;
 use App\Enums\TicketStatus;
 use App\Models\Ticket;
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Support\Facades\DB;
 
 /**
  * @extends Factory<Ticket>
@@ -23,6 +24,7 @@ class TicketFactory extends Factory
             'review_status' => 'pending',
             'priority_score' => 0,
             'priority_label' => PriorityLabel::WAITING,
+            'location' => DB::raw('ST_SetSRID(ST_MakePoint(104.05, 1.12), 4326)'),
         ];
     }
 }

@@ -3,42 +3,44 @@
 use App\Enums\ReportStatus;
 use App\Enums\TicketStatus;
 use App\Jobs\ValidateReportImage;
-use App\Models\AiValidation;
 use App\Models\Photo;
 use App\Models\Report;
 use App\Models\Ticket;
 use App\Models\User;
 use App\Services\Contracts\AiImageValidator;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Redis;
 
 uses(RefreshDatabase::class);
 
-it('dispatches ValidateReportImage job when report is created', function (): void
-{
+it('dispatches ValidateReportImage job when report is created', function (): void {
     Queue::fake();
 
     $user = User::factory()->citizen()->create();
+
+    // Redis tidak ikut ter-reset antar run test — buang hitungan laporan harian basi
+    Redis::del('report_count:' . $user->id . ':' . now()->format('Y-m-d'));
 
     $response = $this->actingAs($user)
         ->postJson('/api/v1/reports', [
             'category' => 'pothole',
             'latitude' => 1.1191,
             'longitude' => 104.0538,
-            'photo' => \Illuminate\Http\UploadedFile::fake()->image('pothole.jpg'),
+            'photo' => UploadedFile::fake()->image('pothole.jpg'),
         ], [
             'Idempotency-Key' => uniqid('test-', true),
         ]);
 
-    $response->assertStatus(201);
+    $response->assertStatus(202);
 
     Queue::assertPushed(ValidateReportImage::class, function ($job) {
         return true;
     });
 });
 
-it('validates report with accepted decision', function (): void
-{
+it('validates report with accepted decision', function (): void {
     $user = User::factory()->citizen()->create();
     $ticket = Ticket::factory()->create(['status' => TicketStatus::REPORTED]);
     $report = Report::factory()->create([
@@ -80,8 +82,7 @@ it('validates report with accepted decision', function (): void
     ]);
 });
 
-it('validates report with rejected decision', function (): void
-{
+it('validates report with rejected decision', function (): void {
     $user = User::factory()->citizen()->create();
     $ticket = Ticket::factory()->create(['status' => TicketStatus::REPORTED]);
     $report = Report::factory()->create([
@@ -123,8 +124,7 @@ it('validates report with rejected decision', function (): void
     ]);
 });
 
-it('validates report with suspicious decision', function (): void
-{
+it('validates report with suspicious decision', function (): void {
     $user = User::factory()->citizen()->create();
     $ticket = Ticket::factory()->create(['status' => TicketStatus::REPORTED]);
     $report = Report::factory()->create([
@@ -165,8 +165,7 @@ it('validates report with suspicious decision', function (): void
     ]);
 });
 
-it('handles AI validation failure gracefully', function (): void
-{
+it('handles AI validation failure gracefully', function (): void {
     $user = User::factory()->citizen()->create();
     $ticket = Ticket::factory()->create(['status' => TicketStatus::REPORTED]);
     $report = Report::factory()->create([
@@ -180,7 +179,7 @@ it('handles AI validation failure gracefully', function (): void
     ]);
 
     $mockValidator = Mockery::mock(AiImageValidator::class);
-    $mockValidator->shouldReceive('validate')->once()->andThrow(new \RuntimeException('API timeout'));
+    $mockValidator->shouldReceive('validate')->once()->andThrow(new RuntimeException('API timeout'));
 
     $this->app->bind(AiImageValidator::class, fn () => $mockValidator);
 
@@ -196,8 +195,7 @@ it('handles AI validation failure gracefully', function (): void
     ]);
 });
 
-it('updates ticket status when report is accepted', function (): void
-{
+it('updates ticket status when report is accepted', function (): void {
     $user = User::factory()->citizen()->create();
     $ticket = Ticket::factory()->create(['status' => TicketStatus::REPORTED]);
     $report = Report::factory()->create([
@@ -230,12 +228,18 @@ it('updates ticket status when report is accepted', function (): void
     ValidateReportImage::dispatchSync($report->id);
 
     $ticket->refresh();
-    expect($ticket->status)->toBe(TicketStatus::VALIDATED);
-    expect($ticket->verified_at)->not->toBeNull();
+    expect($ticket->status)->toBe(TicketStatus::NEEDS_REVIEW);
+    expect($ticket->verified_at)->toBeNull(); // diverifikasi admin saat review disetujui
 
     $this->assertDatabaseHas('ticket_status_histories', [
         'ticket_id' => $ticket->id,
         'from_status' => 'reported',
-        'to_status' => 'validated',
+        'to_status' => 'needs_review',
     ]);
+
+    $admin = User::factory()->admin()->create();
+    $this->actingAs($admin)
+        ->getJson('/api/v1/tickets?status=needs_review')
+        ->assertOk()
+        ->assertJsonPath('data.0.id', $ticket->id);
 });

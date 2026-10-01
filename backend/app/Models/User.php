@@ -15,13 +15,14 @@ final class User extends Authenticatable
     use HasApiTokens, HasFactory, Notifiable;
 
     protected $fillable = [
-        'name', 'phone', 'email', 'oauth_provider', 'oauth_subject',
-        'role', 'phone_verified_at', 'password',
+        'name', 'username', 'phone', 'email', 'oauth_provider', 'oauth_subject',
+        'role', 'phone_verified_at', 'password', 'avatar_path',
     ];
 
     protected $hidden = [
         'remember_token',
         'oauth_subject',
+        'password',
     ];
 
     protected function casts(): array
@@ -45,6 +46,11 @@ final class User extends Authenticatable
     public function notifications(): HasMany
     {
         return $this->hasMany(Notification::class);
+    }
+
+    public function pointTransactions(): HasMany
+    {
+        return $this->hasMany(PointTransaction::class);
     }
 
     public function teamMemberships(): HasMany

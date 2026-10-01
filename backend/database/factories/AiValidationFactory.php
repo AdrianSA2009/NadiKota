@@ -4,6 +4,7 @@ namespace Database\Factories;
 
 use App\Enums\AiDecision;
 use App\Models\AiValidation;
+use App\Models\Report;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -16,7 +17,7 @@ class AiValidationFactory extends Factory
     public function definition(): array
     {
         return [
-            'report_id' => \App\Models\Report::factory(),
+            'report_id' => Report::factory(),
             'result' => ['feasibility' => 'valid', 'category' => 'pothole', 'severity' => 'moderate', 'confidence' => 0.85],
             'decision' => AiDecision::ACCEPTED,
             'confidence' => 0.85,

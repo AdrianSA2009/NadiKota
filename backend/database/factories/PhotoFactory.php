@@ -17,7 +17,7 @@ class PhotoFactory extends Factory
         return [
             'type' => 'before',
             'object_key' => 'photos/' . fake()->uuid() . '.jpg',
-            'sha256' => hash('sha256', fake()->randomBytes(100)),
+            'sha256' => hash('sha256', random_bytes(100)),
             'mime_type' => 'image/jpeg',
             'size_bytes' => fake()->numberBetween(50000, 500000),
         ];

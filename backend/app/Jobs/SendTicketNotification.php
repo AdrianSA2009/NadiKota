@@ -2,7 +2,6 @@
 
 namespace App\Jobs;
 
-use App\Enums\TicketStatus;
 use App\Models\Ticket;
 use App\Services\InAppNotificationChannel;
 use Illuminate\Bus\Queueable;
@@ -17,6 +16,7 @@ class SendTicketNotification implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $tries;
+
     public int $timeout = 10;
 
     public function __construct(
@@ -32,11 +32,12 @@ class SendTicketNotification implements ShouldQueue
         $ticket = Ticket::with(['reporters.user', 'team.members'])->findOrFail($this->ticketId);
 
         $statusLabel = match ($this->status) {
-            'validated' => 'Diverifikasi',
-            'in_queue' => 'Dalam Antrean',
+            'verified' => 'Diverifikasi',
+            'queued' => 'Dalam Antrean',
             'in_progress' => 'Dalam Perbaikan',
             'completed' => 'Selesai',
             'rejected' => 'Ditolak',
+            'cancelled' => 'Dibatalkan',
             'needs_review' => 'Perlu Tinjauan',
             default => $this->status,
         };

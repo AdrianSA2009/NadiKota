@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\ReportCategory;
 use App\Enums\ReportStatus;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -11,9 +12,12 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 
 final class Report extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
         'user_id', 'ticket_id', 'category', 'status',
         'latitude', 'longitude', 'idempotency_key', 'server_captured_at',
+        'rejection_reason', 'rejection_suggestion',
     ];
 
     protected function casts(): array

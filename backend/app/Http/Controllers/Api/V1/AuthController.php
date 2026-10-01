@@ -5,30 +5,164 @@ namespace App\Http\Controllers\Api\V1;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Models\User;
-use App\Services\Contracts\OtpProvider;
 use App\Services\OtpService;
+use App\Support\PhotoUrl;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
-use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Socialite\Facades\Socialite;
+use Symfony\Component\HttpFoundation\RedirectResponse;
 
 final class AuthController extends Controller
 {
+    public function passwordLogin(Request $request): JsonResponse
+    {
+        $credentials = $request->validate([
+            'username' => 'required|string',
+            'password' => 'required|string',
+        ]);
+
+        $user = User::where('username', $credentials['username'])->first();
+        if (! $user || ! $user->password || ! Hash::check($credentials['password'], $user->password)) {
+            return response()->json(['error' => ['message' => 'Username atau password salah.']], 422);
+        }
+
+        Auth::login($user);
+
+        // Token untuk klien mobile (Bearer) — web tetap pakai session cookie
+        $token = $user->createToken('app')->plainTextToken;
+
+        return response()->json(['data' => ['user' => $this->userData($user), 'token' => $token]]);
+    }
+
+    public function usernameAvailable(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'username' => 'required|string|min:3|max:40|alpha_dash',
+        ]);
+
+        $taken = User::where('username', $data['username'])->exists();
+
+        return response()->json(['data' => ['available' => ! $taken]]);
+    }
+
+    public function register(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'username' => 'required|string|min:3|max:40|alpha_dash|unique:users,username',
+            'name' => 'required|string|min:2|max:100',
+            'password' => 'required|string|min:8|confirmed',
+        ]);
+
+        $user = User::create([
+            'username' => $data['username'],
+            'name' => $data['name'],
+            'password' => Hash::make($data['password']),
+            'role' => UserRole::CITIZEN,
+        ]);
+
+        Auth::login($user);
+
+        $token = $user->createToken('app')->plainTextToken;
+
+        return response()->json(['data' => ['user' => $this->userData($user), 'token' => $token]], 201);
+    }
+
+    private function userData(User $user): array
+    {
+        return [
+            'id' => $user->id,
+            'name' => $user->name,
+            'username' => $user->username,
+            'email' => $user->email,
+            'role' => $user->role instanceof \BackedEnum ? $user->role->value : $user->role,
+            'avatarUrl' => PhotoUrl::make($user->avatar_path),
+        ];
+    }
+
+    public function me(Request $request): JsonResponse
+    {
+        return response()->json(['data' => ['user' => $this->userData($request->user())]]);
+    }
+
+    /** Cek sesi tanpa middleware auth: login → user, tamu → null. Selalu 200. */
+    public function session(): JsonResponse
+    {
+        $user = Auth::guard('sanctum')->user();
+
+        return response()->json(['data' => ['user' => $user ? $this->userData($user) : null]]);
+    }
+
+    public function updateProfile(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $data = $request->validate([
+            'username' => 'required|string|min:3|max:40|alpha_dash|unique:users,username,' . $user->id,
+            'name' => 'required|string|min:2|max:100',
+        ]);
+
+        $user->update($data);
+
+        return response()->json(['data' => ['user' => $this->userData($user)]]);
+    }
+
+    public function updatePassword(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'current_password' => 'required|string',
+            'password' => 'required|string|min:8|confirmed',
+        ]);
+
+        $user = $request->user();
+        if (! $user->password || ! Hash::check($data['current_password'], $user->password)) {
+            return response()->json(['error' => ['message' => 'Password saat ini salah.']], 422);
+        }
+
+        $user->update(['password' => Hash::make($data['password'])]);
+
+        return response()->json(['message' => 'Password berhasil diubah.']);
+    }
+
+    public function updateAvatar(Request $request): JsonResponse
+    {
+        $request->validate([
+            'photo' => 'required|image|mimes:jpeg,jpg,png,webp|max:2048',
+        ]);
+
+        $user = $request->user();
+
+        if ($user->avatar_path) {
+            Storage::disk()->delete($user->avatar_path);
+        }
+
+        $user->update([
+            'avatar_path' => $request->file('photo')->store('avatars', 'public'),
+        ]);
+
+        return response()->json(['data' => ['user' => $this->userData($user)]]);
+    }
+
     /**
      * Redirect ke Google OAuth.
      */
-    public function googleRedirect(): \Symfony\Component\HttpFoundation\RedirectResponse
+    public function googleRedirect(): RedirectResponse
     {
         return Socialite::driver('google')
-            ->stateless()
+            ->scopes([
+                'openid',
+                'https://www.googleapis.com/auth/userinfo.email',
+                'https://www.googleapis.com/auth/userinfo.profile',
+            ])
             ->redirect();
     }
 
     /**
      * Handle callback dari Google OAuth.
      */
-    public function googleCallback(Request $request): JsonResponse
+    public function googleCallback(Request $request): RedirectResponse
     {
         $googleUser = Socialite::driver('google')
             ->stateless()
@@ -46,19 +180,9 @@ final class AuthController extends Controller
             ],
         );
 
-        $token = $user->createToken('auth-token')->plainTextToken;
+        Auth::login($user);
 
-        return response()->json([
-            'data' => [
-                'token' => $token,
-                'user' => [
-                    'id' => $user->id,
-                    'name' => $user->name,
-                    'email' => $user->email,
-                    'role' => $user->role->value,
-                ],
-            ],
-        ]);
+        return redirect(config('app.frontend_url', 'http://localhost:3000') . '/peta');
     }
 
     /**
@@ -92,7 +216,9 @@ final class AuthController extends Controller
             ],
         );
 
-        $token = $user->createToken('auth-token')->plainTextToken;
+        Auth::login($user);
+
+        $token = $user->createToken('app')->plainTextToken;
 
         return response()->json([
             'data' => [
@@ -140,7 +266,7 @@ final class AuthController extends Controller
     {
         $request->validate([
             'phone' => 'required|string',
-            'otp' => 'required|string|size:'. config('nadi-kota.otp.length', 6),
+            'otp' => 'required|string|size:' . config('nadi-kota.otp.length', 6),
         ]);
 
         $phone = $request->input('phone');
@@ -163,11 +289,10 @@ final class AuthController extends Controller
 
         $user->update(['phone_verified_at' => $user->phone_verified_at ?? now()]);
 
-        $token = $user->createToken('auth-token')->plainTextToken;
+        Auth::login($user);
 
         return response()->json([
             'data' => [
-                'token' => $token,
                 'user' => [
                     'id' => $user->id,
                     'name' => $user->name,
@@ -179,11 +304,22 @@ final class AuthController extends Controller
     }
 
     /**
-     * Logout — revoke token.
+     * Logout — hancurkan session backend.
      */
     public function logout(Request $request): JsonResponse
     {
-        $request->user()->currentAccessToken()->delete();
+        // Cabut token mobile (Bearer) bila dipakai; session web tetap di-invalidate
+        $token = $request->user()?->currentAccessToken();
+        if ($token instanceof \Laravel\Sanctum\PersonalAccessToken) {
+            $token->delete();
+        }
+
+        Auth::guard('web')->logout();
+
+        if ($request->hasSession()) {
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+        }
 
         return response()->json(['message' => 'Berhasil logout.']);
     }

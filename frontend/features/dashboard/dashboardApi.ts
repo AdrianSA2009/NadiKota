@@ -1,62 +1,69 @@
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/apiClient";
-import type { DispatchTicket, FieldTeam, ReviewTicket, ReviewTicketListResponse, TicketListResponse, TicketQueryParams } from "./dashboardTypes";
+import type { AnalyticsSummary, DangerLevel, DispatchTicket, ReviewTicket, ReviewTicketListResponse, Team, TeamDetailResponse, TicketListResponse, TicketQueryParams } from "./dashboardTypes";
 
 export function useTickets(params: TicketQueryParams = { status: "queued" }) {
-  return useQuery({
+  return useInfiniteQuery({
     queryKey: ["tickets", params],
-    queryFn: async () => {
-      const response = await apiClient.get<TicketListResponse>("/tickets", {
-        params: {
-          ...params,
-          sort: "priority_score",
-          direction: "desc",
-        },
-      });
-      return response.data;
-    },
+    queryFn: async ({ pageParam = 1 }) => (await apiClient.get<TicketListResponse>("/tickets", { params: { ...params, page: pageParam, sort: "priority_score", direction: "desc" } })).data,
+    getNextPageParam: (lastPage) => lastPage.meta.currentPage < lastPage.meta.lastPage ? lastPage.meta.currentPage + 1 : undefined,
+    initialPageParam: 1,
   });
 }
 
 export function useTicketDetail(id: number) {
-  return useQuery({
-    queryKey: ["ticket", id],
-    queryFn: async () => {
-      const response = await apiClient.get(`/tickets/${id}`);
-      return response.data;
-    },
-    enabled: Number.isInteger(id) && id > 0,
-  });
+  return useQuery({ queryKey: ["ticket", id], queryFn: async () => (await apiClient.get(`/tickets/${id}`)).data, enabled: Number.isInteger(id) && id > 0 });
 }
 
-export async function reviewTicket(id: number, decision: "approved" | "rejected", reason: string): Promise<ReviewTicket> {
-  const response = await apiClient.post<{ data: ReviewTicket }>(`/tickets/${id}/review`, { decision, reason });
-  return response.data.data;
-}
+export async function getAnalyticsSummary(): Promise<AnalyticsSummary> { return (await apiClient.get<{ data: AnalyticsSummary }>("/analytics/summary")).data.data; }
+export async function reviewTicket(id: number, decision: "approved" | "rejected", reason: string, dangerLevel?: DangerLevel): Promise<ReviewTicket> { return (await apiClient.post<{ data: ReviewTicket }>(`/tickets/${id}/review`, { decision, reason, ...(dangerLevel ? { danger_level: dangerLevel } : {}) })).data.data; }
+export async function getReviewTickets(page: number): Promise<ReviewTicketListResponse> { return (await apiClient.get<ReviewTicketListResponse>("/tickets", { params: { status: "needs_review", page, sort: "created_at", direction: "asc" } })).data; }
+export type TeamInput = { name: string; district: string; type?: string | null; description?: string | null };
+export type LeaderInput = {
+  pj_mode: "new" | "existing";
+  pj_name?: string;
+  pj_username?: string;
+  pj_email?: string;
+  pj_phone?: string;
+  pj_password?: string;
+  user_id?: number;
+};
 
-export async function getReviewTickets(page: number): Promise<ReviewTicketListResponse> {
-  const response = await apiClient.get<ReviewTicketListResponse>("/tickets", { params: { status: "needs_review", page, sort: "created_at", direction: "asc" } });
-  return response.data;
-}
-
-export async function getFieldTeams(): Promise<FieldTeam[]> {
-  const response = await apiClient.get<{ data: FieldTeam[] }>("/teams");
-  return response.data.data;
-}
-
-export async function getDispatchTickets(): Promise<DispatchTicket[]> {
-  const response = await apiClient.get<{ data: DispatchTicket[] }>("/tickets", { params: { status: "queued" } });
-  return response.data.data;
-}
-
-export async function assignTicket(ticketId: number, teamId: number): Promise<DispatchTicket> {
-  const response = await apiClient.post<{ data: DispatchTicket }>(`/tickets/${ticketId}/assign`, { team_id: teamId });
-  return response.data.data;
-}
-
+export async function getFieldTeams(): Promise<Team[]> { return (await apiClient.get<{ data: Team[] }>("/teams")).data.data; }
+export async function getTeam(id: number): Promise<TeamDetailResponse> { return (await apiClient.get<{ data: TeamDetailResponse }>(`/teams/${id}`)).data.data; }
+/** Satu tiket lengkap (untuk halaman tugaskan mobile). */
+export async function getDispatchTicket(id: number): Promise<DispatchTicket> { return (await apiClient.get<{ data: DispatchTicket }>(`/tickets/${id}`)).data.data; }
+export async function createTeam(input: TeamInput & LeaderInput): Promise<Team> { return (await apiClient.post<{ data: Team }>("/teams", input)).data.data; }
+export async function updateTeam(id: number, input: TeamInput): Promise<Team> { return (await apiClient.put<{ data: Team }>(`/teams/${id}`, input)).data.data; }
+export async function changeTeamLeader(id: number, input: LeaderInput): Promise<Team> { return (await apiClient.patch<{ data: Team }>(`/teams/${id}/leader`, input)).data.data; }
+export async function resetTeamPassword(id: number, password: string): Promise<void> { await apiClient.post(`/teams/${id}/reset-password`, { password }); }
+export async function deactivateTeam(id: number): Promise<Team> { return (await apiClient.patch<{ data: Team }>(`/teams/${id}/deactivate`)).data.data; }
+export async function activateTeam(id: number): Promise<Team> { return (await apiClient.patch<{ data: Team }>(`/teams/${id}/activate`)).data.data; }
+export async function searchTeamLeaders(q: string): Promise<{ id: number; name: string; username?: string | null; email?: string | null; phone?: string | null }[]> { return (await apiClient.get<{ data: { id: number; name: string; username?: string | null; email?: string | null; phone?: string | null }[] }>("/users/search", { params: { q } })).data.data; }
+/** Semua tiket aktif untuk halaman dispatch (queued + in_progress) — difilter di UI. */
+export async function getDispatchTickets(): Promise<DispatchTicket[]> { return (await apiClient.get<{ data: DispatchTicket[] }>("/tickets", { params: { per_page: 100 } })).data.data; }
+export async function assignTicket(ticketId: number, teamId: number): Promise<DispatchTicket> { return (await apiClient.post<{ data: DispatchTicket }>(`/tickets/${ticketId}/dispatch`, { teamId })).data.data; }
 export async function completeTicket(ticketId: number, photo: File): Promise<DispatchTicket> {
   const formData = new FormData();
-  formData.append("photo", photo, photo.name);
-  const response = await apiClient.post<{ data: DispatchTicket }>(`/tickets/${ticketId}/complete`, formData, { headers: { "Content-Type": "multipart/form-data", "Idempotency-Key": crypto.randomUUID() } });
-  return response.data.data;
+  formData.append("after_photo", photo, photo.name);
+  return (await apiClient.post<{ data: DispatchTicket }>(`/tickets/${ticketId}/complete`, formData, { headers: { "Content-Type": "multipart/form-data", "Idempotency-Key": crypto.randomUUID() } })).data.data;
+}
+
+export async function cancelTicket(ticketId: number, reason: string): Promise<{ ticket_id: number; status: "cancelled"; message: string }> {
+  return (await apiClient.post<{ data: { ticket_id: number; status: "cancelled"; message: string } }>(`/tickets/${ticketId}/cancel`, { reason })).data.data;
+}
+
+/** Admin memverifikasi bukti tim lalu menyelesaikan tiket. */
+export async function finalizeTicket(ticketId: number): Promise<{ ticket_id: number; status: string; message: string }> {
+  return (await apiClient.post<{ data: { ticket_id: number; status: string; message: string } }>(`/tickets/${ticketId}/finalize`)).data.data;
+}
+
+/** Admin menolak bukti hasil perbaikan (kurang valid) → tim kirim foto ulang. */
+export async function rejectTicketProof(ticketId: number, reason: string): Promise<{ ticket_id: number; review_status: string; message: string }> {
+  return (await apiClient.post<{ data: { ticket_id: number; review_status: string; message: string } }>(`/tickets/${ticketId}/reject-proof`, { reason })).data.data;
+}
+
+/** Tim menekan "Mulai" — menandai tiket sedang dikerjakan (queued → in_progress). */
+export async function startTicket(ticketId: number): Promise<{ ticket_id: number; status: string; message: string }> {
+  return (await apiClient.post<{ data: { ticket_id: number; status: string; message: string } }>(`/tickets/${ticketId}/start`)).data.data;
 }

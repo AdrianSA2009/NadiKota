@@ -3,8 +3,6 @@
 namespace App\Console\Commands;
 
 use App\Enums\TicketStatus;
-use App\Enums\UserRole;
-use App\Jobs\SendTicketNotification;
 use App\Models\AuditLog;
 use App\Models\Ticket;
 use App\Models\User;
@@ -16,6 +14,7 @@ use Illuminate\Support\Facades\Log;
 class EscalateOverdueTickets extends Command
 {
     protected $signature = 'nadi:escalate-overdue';
+
     protected $description = 'Deteksi tiket terlambat dan kirim eskalasi berjenjang';
 
     public function handle(InAppNotificationChannel $channel): int
@@ -79,6 +78,7 @@ class EscalateOverdueTickets extends Command
                     'ticket_id' => $ticket->id,
                     'role' => $role,
                 ]);
+
                 return;
             }
 

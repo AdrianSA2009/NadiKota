@@ -244,6 +244,11 @@ paths:
                   enum: [approved, rejected]
                 reason:
                   type: string
+                danger_level:
+                  type: string
+                  enum: [bahaya, hati-hati]
+                  nullable: true
+                  description: Tingkat bahaya (opsional, hasil AI bisa diubah admin)
       responses:
         '200':
           description: Review berhasil

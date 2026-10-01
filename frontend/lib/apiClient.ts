@@ -1,21 +1,37 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from "axios";
 
-type ApiErrorResponse = { error?: { message?: string } };
+type ApiErrorResponse = { error?: { message?: string; details?: Record<string, string[]> }; errors?: Record<string, string[]> };
+
+let csrfPromise: Promise<void> | null = null;
+
+export function ensureCsrfCookie(): Promise<void> {
+	if (typeof window === "undefined") return Promise.resolve();
+	csrfPromise ??= axios.get("/sanctum/csrf-cookie", { withCredentials: true }).then(() => undefined);
+	return csrfPromise;
+}
 
 export const apiClient = axios.create({
-	baseURL: `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"}/api/v1`,
+	baseURL: "/api/v1",
 	timeout: 15_000,
 	headers: { Accept: "application/json" },
 	withCredentials: true,
 });
 
-apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+apiClient.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
 	if (typeof document === "undefined") return config;
 
-	const csrfToken = document.cookie
-		.split("; ")
-		.find((item) => item.trim().startsWith("XSRF-TOKEN="))
-		?.split("=")[1];
+	const readXsrf = () =>
+		document.cookie
+			.split("; ")
+			.find((item) => item.trim().startsWith("XSRF-TOKEN="))
+			?.split("=")[1];
+
+	let csrfToken = readXsrf();
+	// cookie bisa habis di tab baru — ambil dulu sebelum POST (stateful origin wajib CSRF)
+	if (!csrfToken && (config.method ?? "get").toUpperCase() !== "GET") {
+		await ensureCsrfCookie();
+		csrfToken = readXsrf();
+	}
 
 	if (csrfToken) config.headers["X-XSRF-TOKEN"] = decodeURIComponent(csrfToken);
 	return config;
@@ -24,12 +40,15 @@ apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
 apiClient.interceptors.response.use(
 	(response) => response,
 	(error: AxiosError<ApiErrorResponse>) => {
-		if (error.response?.status === 401 && typeof window !== "undefined") {
-			window.location.assign("/login");
-		}
-
-		return Promise.reject(new Error(
+		const err = new Error(
 			error.response?.data?.error?.message ?? "Permintaan gagal. Coba lagi.",
-		));
+		) as Error & { status?: number; fields?: Record<string, string[]> };
+		err.status = error.response?.status;
+		// Renderer backend memakai error.details (key camelCase) — normalkan ke snake_case untuk field form.
+		const details = error.response?.data?.error?.details ?? error.response?.data?.errors;
+		err.fields = details
+			? Object.fromEntries(Object.entries(details).map(([key, value]) => [key.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`), value]))
+			: undefined;
+		return Promise.reject(err);
 	},
 );

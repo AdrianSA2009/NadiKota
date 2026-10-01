@@ -11,7 +11,9 @@ final class EnsureRole
     public function handle(Request $request, Closure $next, string ...$roles): Response
     {
         abort_unless($request->user() !== null, 401, 'Unauthenticated.');
-        abort_unless(in_array($request->user()->role, $roles, true), 403, 'Forbidden.');
+        $role = $request->user()->role;
+        $roleValue = $role instanceof \BackedEnum ? $role->value : $role;
+        abort_unless(in_array($roleValue, $roles, true), 403, 'Forbidden.');
 
         return $next($request);
     }

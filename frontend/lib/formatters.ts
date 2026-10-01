@@ -17,5 +17,11 @@ export function formatStatus(status: string): string {
     completed: "Selesai",
     needs_review: "Perlu Tinjauan",
     rejected: "Ditolak",
+    cancelled: "Dibatalkan",
   }[status] ?? status;
+}
+
+/** Label tingkat bahaya tiket (hasil AI / pilihan admin). */
+export function dangerLevelLabel(level?: string | null): string | null {
+  return level === "bahaya" ? "Bahaya" : level === "hati-hati" ? "Hati-hati" : null;
 }

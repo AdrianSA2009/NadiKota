@@ -15,7 +15,7 @@ class AnalyticsService
      */
     public function getSummary(): array
     {
-        $cacheKey = 'analytics:summary';
+        $cacheKey = 'analytics:summary:v2';
         $cached = Redis::get($cacheKey);
 
         if ($cached) {
@@ -30,6 +30,17 @@ class AnalyticsService
             'team_performance' => $this->getTeamPerformance(),
             'total_tickets' => Ticket::count(),
             'total_users' => User::count(),
+            'unique_reporters' => DB::table('reports')->distinct()->count('user_id'),
+            'sla_escalated' => Ticket::whereIn('status', [
+                    TicketStatus::REPORTED->value,
+                    TicketStatus::VERIFIED->value,
+                    TicketStatus::QUEUED->value,
+                    TicketStatus::IN_PROGRESS->value,
+                    TicketStatus::NEEDS_REVIEW->value,
+                ])
+                ->where('created_at', '<', now()->subDays(3))
+                ->count(),
+            'chart' => $this->getReportChart(14),
             'generated_at' => now()->toIso8601String(),
         ];
 
@@ -44,6 +55,26 @@ class AnalyticsService
             ->groupBy('status')
             ->pluck('count', 'status')
             ->toArray();
+    }
+
+    /** Grafik batang pelaporan: jumlah laporan per hari (N hari terakhir, termasuk hari tanpa laporan). */
+    private function getReportChart(int $days): array
+    {
+        $from = now()->subDays($days - 1)->startOfDay();
+        $counts = DB::table('reports')
+            ->where('created_at', '>=', $from)
+            ->selectRaw('date(created_at) as day, count(*) as count')
+            ->groupBy('day')
+            ->pluck('count', 'day')
+            ->toArray();
+
+        $chart = [];
+        for ($i = 0; $i < $days; $i++) {
+            $key = now()->subDays($days - 1 - $i)->format('Y-m-d');
+            $chart[] = ['date' => $key, 'count' => (int) ($counts[$key] ?? 0)];
+        }
+
+        return $chart;
     }
 
     private function getAverageResponseTime(): ?float

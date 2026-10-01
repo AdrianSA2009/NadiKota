@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\TicketStatus;
 use App\Models\PriorityConfiguration;
 use App\Models\Ticket;
 use Illuminate\Support\Facades\DB;
@@ -70,8 +71,8 @@ class PriorityService
      */
     public function recomputeAllActiveTickets(): int
     {
-        $tickets = \App\Models\Ticket::query()
-            ->whereIn('status', ['reported', 'validated', 'in_queue', 'in_progress'])
+        $tickets = Ticket::query()
+            ->whereIn('status', [TicketStatus::REPORTED, TicketStatus::VERIFIED, TicketStatus::QUEUED, TicketStatus::IN_PROGRESS])
             ->get();
 
         $count = 0;
@@ -192,8 +193,13 @@ class PriorityService
 
     private function determineLabel(float $score): string
     {
-        if ($score >= 70) return 'urgent';
-        if ($score >= 30) return 'waiting';
+        if ($score >= 70) {
+            return 'urgent';
+        }
+        if ($score >= 30) {
+            return 'waiting';
+        }
+
         return 'completed';
     }
 }

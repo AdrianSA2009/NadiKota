@@ -1,0 +1,42 @@
+# ===== Repo NadiKota — root .gitignore =====
+
+# Folder yang TIDAK ikut dikirim
+/mobile/
+/tmp/
+
+# Dependensi & hasil build (tiap subfolder punya aturannya sendiri juga)
+node_modules/
+.next/
+out/
+build/
+coverage/
+vendor/
+*.tsbuildinfo
+
+# Environment & rahasia — JANGAN pernah masuk repo
+.env
+.env.*
+!.env.example
+*.key
+auth.json
+
+# Data runtime backend (log, cache, unggahan foto)
+/backend/storage/logs/
+/backend/storage/framework/cache/
+/backend/storage/framework/sessions/
+/backend/storage/framework/views/
+/backend/storage/app/public/photos/
+/backend/bootstrap/cache/
+/.phpunit.cache
+.phpunit.result.cache
+
+# Editor, OS, log
+.idea/
+.vscode/
+.DS_Store
+*.log
+npm-debug.log*
+yarn-error.log*
+
+# Layanan eksternal
+.vercel

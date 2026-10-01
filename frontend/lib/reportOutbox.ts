@@ -12,6 +12,7 @@ function getDatabase() {
 
 export interface OfflineReport {
   id: string;
+  idempotencyKey: string;
   category: "pothole" | "street_light" | "other";
   latitude: number;
   longitude: number;

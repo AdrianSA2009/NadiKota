@@ -3,12 +3,8 @@
 namespace App\Services;
 
 use App\Enums\ReportStatus;
-use App\Enums\TicketStatus;
 use App\Jobs\ValidateReportImage;
 use App\Models\Report;
-use App\Models\Ticket;
-use App\Models\TicketReporter;
-use App\Models\TicketStatusHistory;
 use App\Models\User;
 use App\Repositories\Contracts\ReportRepository;
 use Illuminate\Http\UploadedFile;
@@ -30,6 +26,7 @@ class ReportService
         array $payload,
         UploadedFile $photo,
         ?string $idempotencyKey = null,
+        ?string $ip = null,
     ): Report {
         $idempotencyKey = $idempotencyKey ?? uniqid('report-', true);
 
@@ -49,11 +46,11 @@ class ReportService
         }
         $maxDaily = config('nadi-kota.rate_limiting.reports_per_user_per_day', 10);
 
-        // Simpan foto ke S3
+        // Simpan foto ke disk (lokal public / S3 jika dikonfigurasi)
         $objectKey = 'photos/' . now()->format('Y/m/d') . '/' . uniqid() . '.' . $photo->getClientOriginalExtension();
-        $photo->storeAs('photos/' . now()->format('Y/m/d'), basename($objectKey), 's3');
+        $photo->storeAs('photos/' . now()->format('Y/m/d'), basename($objectKey));
 
-        return DB::transaction(function () use ($user, $payload, $photo, $idempotencyKey, $objectKey, $dailyCount, $maxDaily) {
+        return DB::transaction(function () use ($user, $payload, $photo, $idempotencyKey, $objectKey, $dailyCount, $maxDaily, $ip) {
             // Cari tiket terdekat
             $nearbyTicketId = $this->reports->findNearbyActiveTicket(
                 $payload['category'],
@@ -94,8 +91,9 @@ class ReportService
 
             // Dispatch AI validation hanya untuk laporan yang lolos filter
             if ($status === ReportStatus::SUBMITTED) {
-                ValidateReportImage::dispatch($report->id)
-                    ->onQueue('ai-validation');
+                ValidateReportImage::dispatch($report->id, $ip)
+                    ->onQueue('ai-validation')
+                    ->afterCommit();
             }
 
             return $report;

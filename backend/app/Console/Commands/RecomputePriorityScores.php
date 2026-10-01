@@ -8,6 +8,7 @@ use Illuminate\Console\Command;
 class RecomputePriorityScores extends Command
 {
     protected $signature = 'nadi:recompute-priority';
+
     protected $description = 'Recompute priority scores for all active tickets (factors: age, severity, etc.)';
 
     public function handle(PriorityService $priorityService): int

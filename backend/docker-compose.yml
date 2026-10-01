@@ -1,0 +1,31 @@
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: nadikota-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: nadi_kota
+      POSTGRES_USER: nadi_kota
+      POSTGRES_PASSWORD: hesoyam123
+    ports:
+      - "5432:5432"
+    volumes:
+      - nadikota-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nadi_kota -d nadi_kota"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: nadikota-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - nadikota-redis-data:/data
+
+volumes:
+  nadikota-postgres-data:
+  nadikota-redis-data:

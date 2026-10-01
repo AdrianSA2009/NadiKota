@@ -1,16 +1,37 @@
-export type TicketStatus = "reported" | "verified" | "queued" | "in_progress" | "completed" | "needs_review";
+export type TicketStatus = "reported" | "verified" | "queued" | "in_progress" | "completed" | "rejected" | "cancelled" | "needs_review";
+
+export type DangerLevel = "bahaya" | "hati-hati";
 
 export interface Ticket {
   id: number;
   ticketNumber: string;
   category: "pothole" | "street_light" | "other";
   status: TicketStatus;
-  priorityLabel: "urgent" | "waiting" | "completed";
+  /** Status verifikasi: pending | approved | rejected | submitted (bukti dikirim tim) | proof_rejected (ditolak admin). */
+  reviewStatus?: "pending" | "approved" | "rejected" | "submitted" | "proof_rejected";
+  priorityLabel: "urgent" | "waiting" | "done";
   priorityScore: number;
+  /** Tingkat bahaya hasil AI, bisa diubah admin saat review. */
+  dangerLevel?: DangerLevel | null;
+  /** Foto laporan & analisis AI — hanya untuk endpoint yang eager load (kartu review). */
+  photoUrl?: string | null;
+  /** Foto bukti hasil perbaikan dari tim (untuk verifikasi admin). */
+  afterPhotoUrl?: string | null;
+  /** Alasan admin saat menolak bukti (untuk kirim ulang oleh tim). */
+  proofNote?: string | null;
+  aiAnalysis?: {
+    decision?: string | null;
+    severity?: string | null;
+    confidence?: number | null;
+    reason?: string | null;
+    model?: string | null;
+  } | null;
   uniqueReporterCount: number;
   latitude: number;
   longitude: number;
   district: string;
+  cancelledAt?: string | null;
+  cancelReason?: string | null;
   createdAt: string;
 }
 
@@ -36,5 +57,41 @@ export interface ReviewTicketListResponse {
   meta: TicketListResponse["meta"];
 }
 
-export interface FieldTeam { id: number; name: string; district?: string; }
+export interface TeamLeader { id: number; name: string; username?: string | null; email?: string | null; phone?: string | null; }
+
+export type TeamStatus = "tersedia" | "bertugas" | "selesai" | "nonaktif";
+
+export interface Team {
+  id: number;
+  name: string;
+  district: string | null;
+  type: string | null;
+  description: string | null;
+  isActive: boolean;
+  userId: number | null;
+  leader: TeamLeader | null;
+  activeTicketCount: number;
+  totalTicketCount: number;
+  status: TeamStatus;
+  createdAt?: string;
+}
+
+export interface ListMeta { currentPage: number; lastPage: number; total: number; }
+
+/** Ringkasan KPI dashboard admin (GET /analytics/summary). */
+export interface AnalyticsSummary {
+  tickets_by_status: Record<string, number>;
+  response_time: number | null;
+  completion_time: number | null;
+  consolidation_rate: number;
+  team_performance: { team_name: string; completed_count: number; avg_completion_hours: number | null }[];
+  total_tickets: number;
+  total_users: number;
+  unique_reporters: number;
+  sla_escalated: number;
+  chart: { date: string; count: number }[];
+  generated_at: string;
+}
+
+export interface TeamDetailResponse { team: Team; tickets: DispatchTicket[]; meta: ListMeta; }
 export interface DispatchTicket extends Ticket { assignedTeamId?: number | null; }

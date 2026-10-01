@@ -2,10 +2,10 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/Badge";
 import type { Ticket } from "@/features/dashboard/dashboardTypes";
 
-const priorityVariant: Record<Ticket["priorityLabel"], "urgent" | "waiting" | "completed"> = {
+const priorityVariant: Record<Ticket["priorityLabel"], "urgent" | "waiting" | "done"> = {
   urgent: "urgent",
   waiting: "waiting",
-  completed: "completed",
+  done: "done",
 };
 
 const categoryLabel: Record<Ticket["category"], string> = {

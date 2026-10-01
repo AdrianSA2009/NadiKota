@@ -32,7 +32,46 @@ final class TicketPolicy
 
     public function complete(User $user, Ticket $ticket): bool
     {
-        return $user->role === UserRole::FIELD_TEAM;
+        if ($ticket->status !== TicketStatus::IN_PROGRESS) {
+            return false;
+        }
+
+        if ($user->role === UserRole::ADMIN || $user->role === UserRole::SUPER_ADMIN) {
+            return true;
+        }
+
+        return $user->role === UserRole::FIELD_TEAM
+            && $ticket->team?->members()->whereKey($user->id)->exists();
+    }
+
+    /** Finalisasi (verifikasi bukti) — hanya admin. */
+    public function finalize(User $user, Ticket $ticket): bool
+    {
+        return $user->role === UserRole::ADMIN || $user->role === UserRole::SUPER_ADMIN;
+    }
+
+    /** Penolakan bukti hasil perbaikan — hanya admin. */
+    public function rejectProof(User $user, Ticket $ticket): bool
+    {
+        return $user->role === UserRole::ADMIN || $user->role === UserRole::SUPER_ADMIN;
+    }
+
+    /** Tim menekan "Mulai" — anggota tim yang ditugaskan atau admin. */
+    public function start(User $user, Ticket $ticket): bool
+    {
+        if ($user->role === UserRole::ADMIN || $user->role === UserRole::SUPER_ADMIN) {
+            return true;
+        }
+
+        return $user->role === UserRole::FIELD_TEAM
+            && $ticket->assigned_team_id !== null
+            && $ticket->team?->members()->whereKey($user->id)->exists();
+    }
+
+    public function cancel(User $user, Ticket $ticket): bool
+    {
+        return ($user->role === UserRole::ADMIN || $user->role === UserRole::SUPER_ADMIN)
+            && $ticket->status->isActive();
     }
 
     public function support(User $user, Ticket $ticket): bool

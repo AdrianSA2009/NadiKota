@@ -1,12 +1,14 @@
-import { BadgeCheck, CircleCheck, CircleHelp, Construction, Lightbulb, ListOrdered, Send, ShieldQuestion, TriangleAlert, Wrench, Clock } from "lucide-react";
+import { BadgeCheck, CircleCheck, CircleHelp, CircleX, Construction, Hourglass, Lightbulb, ListOrdered, Send, ShieldQuestion, TriangleAlert, Wrench, Clock } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-type Variant = "urgent" | "waiting" | "completed" | "reported" | "verified" | "queued" | "in_progress" | "needs_review" | "pothole" | "street_light" | "other";
+type Variant = "urgent" | "waiting" | "done" | "cancelled" | "assessing" | "reported" | "verified" | "queued" | "in_progress" | "needs_review" | "pothole" | "street_light" | "other";
 
 const variants: Record<Variant, { label: string; icon: LucideIcon; className: string }> = {
   urgent: { label: "Mendesak", icon: TriangleAlert, className: "border-danger-600 bg-danger-50 text-danger-700" },
   waiting: { label: "Menunggu", icon: Clock, className: "border-warning-600 bg-warning-50 text-warning-800" },
-  completed: { label: "Selesai", icon: CircleCheck, className: "border-success-600 bg-success-50 text-success-700" },
+  done: { label: "Selesai", icon: CircleCheck, className: "border-success-600 bg-success-50 text-success-700" },
+  cancelled: { label: "Dibatalkan", icon: CircleX, className: "border-neutral-300 bg-neutral-100 text-neutral-600" },
+  assessing: { label: "Dalam Penilaian", icon: Hourglass, className: "border-info-600 bg-info-50 text-info-800" },
   reported: { label: "Dilaporkan", icon: Send, className: "border-info-600 bg-info-50 text-info-800" },
   verified: { label: "Diverifikasi", icon: BadgeCheck, className: "border-info-600 bg-info-50 text-info-800" },
   queued: { label: "Dalam Antrean", icon: ListOrdered, className: "border-warning-600 bg-warning-50 text-warning-800" },

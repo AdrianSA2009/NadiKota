@@ -11,6 +11,6 @@ export default function manifest(): MetadataRoute.Manifest {
 		background_color: THEME_COLORS.neutral[50],
 		theme_color: THEME_COLORS.primary[900],
 		lang: "id-ID",
-		icons: [{ src: "/icons/icon-192.png", sizes: "192x192", type: "image/png" }],
+		icons: [{ src: "/icons/icon.svg", sizes: "192x192", type: "image/svg+xml" }],
 	};
 }
