@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Loader2, MapPin, Navigation, Search, Share2, X } from "lucide-react";
 import { MapMarker, MapRoute, MarkerContent, useMap } from "@/components/ui/map";
 import { useKontribusiPanel } from "@/lib/kontribusiPanelStore";
+import { useRouteStore } from "@/lib/routeStore";
 
 /** Photon (komoot) — geocoding OSM gratis tanpa key, di-bias ke tengah peta. */
 const PHOTON_URL = "https://photon.komoot.io/api/";
@@ -51,6 +52,11 @@ export function MapSearch({ origin, actions, navAction }: { origin?: { lat: numb
   const [picked, setPicked] = useState<Place | null>(null);
   const [route, setRoute] = useState<[number, number][]>([]);
   const [routeInfo, setRouteInfo] = useState<string | null>(null);
+  // Sinkronkan rute aktif ke store global → dipakai peringatan suara jalan berlubang.
+  const setRouteCoords = useRouteStore((s) => s.setCoords);
+  useEffect(() => {
+    setRouteCoords(route.length > 1 ? route : null);
+  }, [route, setRouteCoords]);
   const [routing, setRouting] = useState(false);
   const [routeErr, setRouteErr] = useState<string | null>(null);
   const [selecting, setSelecting] = useState(false);
@@ -190,6 +196,8 @@ export function MapSearch({ origin, actions, navAction }: { origin?: { lat: numb
       lng,
       lat,
     };
+    // Efek sekali-jalan saat URL berisi ?route= — setPicked di sini aman (bukan sinkronisasi state biasa).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPicked(place);
     void drawRoute(place);
     router.replace(pathname); // bersihkan URL agar tidak menggambar ulang saat refresh

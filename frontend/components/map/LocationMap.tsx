@@ -7,6 +7,7 @@ import { Map, MapMarker, MarkerContent, MarkerPopup, MapControls, type MapStyleO
 import { dangerLevelLabel } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 import { MapSearch } from "./MapSearch";
+import { usePotholeVoiceAlert } from "@/hooks/usePotholeVoiceAlert";
 import type { Ticket } from "@/features/dashboard/dashboardTypes";
 
 /** Penanda peta: menunggu konfirmasi = navy (bukan kuning), sesuai tingkat bahaya: merah / amber. */
@@ -334,6 +335,10 @@ export default function LocationMap({ tickets = [], center = [104.0305, 1.0456],
   }, [userLocation]);
 
   const myLocation = userLocation ?? geo;
+
+  // Peringatan suara "jalan berlubang 50 m" — hanya aktif saat pengguna pakai rute
+  // (state rute ada di useRouteStore; tanpa rute → hook diam).
+  usePotholeVoiceAlert(tickets, myLocation);
 
   return (
     <div className="relative h-full w-full overflow-hidden">
