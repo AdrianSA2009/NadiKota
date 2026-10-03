@@ -1,8 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Clock, HardHat, ListOrdered, Percent, RefreshCw, Search, TriangleAlert, TrendingUp } from "lucide-react";
-import { Button } from "@/components/ui/Button";
+import { Clock, HardHat, ListOrdered, Percent, Search, TriangleAlert, TrendingUp } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -13,23 +12,27 @@ const formatHours = (h: number | null | undefined) =>
   h == null ? "—" : h.toLocaleString("id-ID", { maximumFractionDigits: 1 });
 
 export function DashboardView() {
-  const kpiQuery = useQuery({ queryKey: ["analytics-summary"], queryFn: getAnalyticsSummary, staleTime: 60_000 });
+  // Real-time: poll ringan tiap 30 detik — tidak perlu tombol muat ulang manual.
+  const kpiQuery = useQuery({
+    queryKey: ["analytics-summary"],
+    queryFn: getAnalyticsSummary,
+    staleTime: 20_000,
+    refetchInterval: 30_000,
+    refetchIntervalInBackground: false,
+  });
   const s = kpiQuery.data;
   const byStatus = s?.tickets_by_status ?? {};
 
   return (
-    <main className="absolute inset-0 overflow-y-auto bg-neutral-50 px-4 py-6 pb-24 text-neutral-700 md:pb-6 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-7xl">
-        <header className="mb-6 flex flex-wrap items-end justify-between gap-3">
+    <main className="absolute inset-0 overflow-y-auto bg-neutral-50 px-4 py-6 pb-24 text-neutral-700 md:pb-6 sm:px-6 xl:px-8">
+      {/* Lebar penuh di samping sidebar (konsisten dgn halaman Dispatch/Tiket) — max longgar hanya utk ultra-wide */}
+      <div className="mx-auto w-full max-w-[1720px]">
+        <header className="mb-6">
           <div>
             <p className="text-sm font-medium text-primary-700">NadiKota · Admin Dinas</p>
             <h1 className="mt-1 text-2xl font-bold text-neutral-900 sm:text-3xl">Dashboard</h1>
-            <p className="mt-1 text-sm text-neutral-500">Ringkasan pelaporan masuk dan penanganan tiket.</p>
+            <p className="mt-1 text-sm text-neutral-500">Ringkasan pelaporan masuk dan penanganan tiket — diperbarui otomatis tiap 30 detik.</p>
           </div>
-          <Button type="button" variant="secondary" disabled={kpiQuery.isFetching} onClick={() => void kpiQuery.refetch()}>
-            <RefreshCw className={`mr-2 inline size-5 ${kpiQuery.isFetching ? "animate-spin" : ""}`} aria-hidden="true" />
-            Muat ulang
-          </Button>
         </header>
 
         {/* KPI — semuanya dari backend /analytics/summary */}

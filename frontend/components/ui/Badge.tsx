@@ -27,7 +27,7 @@ export function Badge({ variant }: BadgeProps) {
   const { label, icon: Icon, className } = variants[variant];
 
   return (
-    <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold ${className}`}>
+    <span className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-semibold ${className}`}>
       <Icon className="size-4" aria-hidden="true" />
       <span>{label}</span>
     </span>

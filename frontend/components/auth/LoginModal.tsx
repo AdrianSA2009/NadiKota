@@ -6,10 +6,11 @@ import { roleHome } from "@/lib/roleHome";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { ArrowLeft, Gift, LockKeyhole, MapPin, Radar, UserPlus } from "lucide-react";
+import Image from "next/image";
+import { ArrowLeft, Gift, LockKeyhole, MailCheck, MapPin, Radar, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { ErrorState } from "@/components/ui/ErrorState";
-import { loginWithPassword, registerUser, checkUsernameAvailable } from "@/features/auth/authApi";
+import { loginWithPassword, registerUser, verifyRegisterOtp, checkUsernameAvailable } from "@/features/auth/authApi";
 import { useAuthStore } from "@/features/auth/authStore";
 
 const loginSchema = z.object({
@@ -19,6 +20,7 @@ const loginSchema = z.object({
 const registerSchema = z.object({
   username: z.string().min(1, "Username belum diisi").min(3, "Username minimal 3 karakter").max(40, "Username maksimal 40 karakter").regex(/^[a-zA-Z0-9_-]+$/, "Hanya huruf, angka, dan tanda hubung."),
   name: z.string().min(1, "Nama belum diisi").min(2, "Nama minimal 2 karakter"),
+  email: z.string().min(1, "Email belum diisi").email("Format email tidak valid"),
   password: z.string().min(1, "Password belum diisi").min(8, "Password minimal 8 karakter"),
   confirmPassword: z.string().min(1, "Konfirmasi password belum diisi"),
 }).refine((v) => v.password === v.confirmPassword, { path: ["confirmPassword"], message: "Password tidak sama." });
@@ -27,19 +29,11 @@ type RegisterValues = z.infer<typeof registerSchema>;
 
 const fieldInput = (hasError: boolean) => `min-h-11 w-full rounded-lg border px-3 text-base md:min-h-12 md:px-4 ${hasError ? "border-danger-600 bg-danger-50 focus-visible:border-danger-600 focus-visible:ring-2 focus-visible:ring-danger-600/25" : "border-neutral-300 focus-visible:border-accent-500"}`;
 
-function GoogleIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="size-5" aria-hidden="true">
-      <path fill="#4285F4" d="M21.35 12.27c0-.72-.06-1.42-.18-2.09H12v3.96h5.24a4.48 4.48 0 0 1-1.94 2.94v2.45h3.14c1.84-1.69 2.91-4.18 2.91-7.26Z" />
-      <path fill="#34A853" d="M12 21.7c2.63 0 4.84-.87 6.45-2.37l-3.14-2.45c-.87.58-1.98.93-3.31.93-2.54 0-4.69-1.72-5.46-4.03H3.3v2.53A9.74 9.74 0 0 0 12 21.7Z" />
-      <path fill="#FBBC05" d="M6.54 13.78a5.85 5.85 0 0 1 0-3.56V7.69H3.3a9.75 9.75 0 0 0 0 8.62l3.24-2.53Z" />
-      <path fill="#EA4335" d="M12 6.19c1.43 0 2.71.49 3.72 1.45l2.79-2.79C16.83 3.29 14.63 2.3 12 2.3a9.74 9.74 0 0 0-8.7 5.39l3.24 2.53C7.31 7.91 9.46 6.19 12 6.19Z" />
-    </svg>
-  );
-}
-
 export function LoginModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [registerMode, setRegisterMode] = useState(false);
+  // Langkah OTP: null = form register; string = email yang menunggu kode verifikasi.
+  const [otpEmail, setOtpEmail] = useState<string | null>(null);
+  const [otp, setOtp] = useState("");
   const [error, setError] = useState<string | null>(null);
   const setAuth = useAuthStore((s) => s.setAuth);
   const loginForm = useForm<LoginValues>({ resolver: zodResolver(loginSchema), mode: "onChange" });
@@ -81,12 +75,20 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
     if (submittingRef.current) return;
     submittingRef.current = true;
     setError(null);
-    try { const res = await registerUser(values.username, values.name, values.password, values.confirmPassword); setAuth(res.user); router.push(roleHome(res.user.role)); }
+    try { await registerUser(values.username, values.name, values.email, values.password, values.confirmPassword); setOtpEmail(values.email); }
     catch (e) { setError(e instanceof Error ? e.message : "Registrasi gagal."); }
     finally { submittingRef.current = false; }
   }
 
-  function googleLogin() { window.location.assign("/api/v1/auth/google/redirect"); }
+  /** Langkah 2: verifikasi kode OTP dari email → akun jadi + sesi aktif. */
+  async function submitOtp() {
+    if (submittingRef.current || !otpEmail) return;
+    submittingRef.current = true;
+    setError(null);
+    try { const res = await verifyRegisterOtp(otpEmail, otp.trim()); setAuth(res.user); router.push(roleHome(res.user.role)); }
+    catch (e) { setError(e instanceof Error ? e.message : "Kode OTP salah atau kedaluwarsa."); }
+    finally { submittingRef.current = false; }
+  }
 
   const heroPoints = [
     { icon: MapPin, text: "Titik masalah terpetakan jelas di peta" },
@@ -99,7 +101,7 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
       {/* Hero kiri — desktop saja */}
       <aside className="hidden bg-gradient-to-br from-primary-900 via-primary-800 to-accent-700 p-10 text-neutral-0 md:flex md:w-[46%] md:max-w-2xl md:flex-col md:justify-between lg:p-14">
         <div className="flex items-center gap-2.5">
-          <span className="grid size-9 place-items-center rounded-xl bg-neutral-0 text-sm font-black text-primary-800 shadow-md" aria-hidden="true">N</span>
+          <Image src="/logo-mark.svg" alt="Logo NadiKota" width={36} height={36} unoptimized className="size-9 rounded-xl shadow-md" priority />
           <span className="text-lg font-bold">NadiKota</span>
         </div>
         <div>
@@ -143,14 +145,35 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
         <section className="w-full max-w-sm rounded-3xl border border-neutral-200 bg-neutral-0 p-6 shadow-xl sm:p-8 md:max-w-md md:p-9">
           <div className="flex flex-col items-center text-center">
             <span className="grid size-14 place-items-center rounded-2xl bg-gradient-to-br from-primary-700 to-accent-600 text-neutral-0 shadow-lg md:size-16">
-              {registerMode ? <UserPlus className="size-7 md:size-8" aria-hidden="true" /> : <LockKeyhole className="size-7 md:size-8" aria-hidden="true" />}
+              {registerMode ? (otpEmail ? <MailCheck className="size-7 md:size-8" aria-hidden="true" /> : <UserPlus className="size-7 md:size-8" aria-hidden="true" />) : <LockKeyhole className="size-7 md:size-8" aria-hidden="true" />}
             </span>
-            <h2 className="mt-4 text-2xl font-bold text-neutral-900 md:mt-5 md:text-3xl">{registerMode ? "Buat Akun" : "Masuk ke NadiKota"}</h2>
-            <p className="mt-1.5 text-sm text-neutral-500 md:mt-2 md:text-base">{registerMode ? "Mulai raih poin kontribusi Anda." : "Masuk untuk mulai berkontribusi."}</p>
+            <h2 className="mt-4 text-2xl font-bold text-neutral-900 md:mt-5 md:text-3xl">{otpEmail ? "Verifikasi Email" : registerMode ? "Buat Akun" : "Masuk ke NadiKota"}</h2>
+            <p className="mt-1.5 text-sm text-neutral-500 md:mt-2 md:text-base">{otpEmail ? `Kode verifikasi dikirim ke ${otpEmail}.` : registerMode ? "Mulai raih poin kontribusi Anda." : "Masuk untuk mulai berkontribusi."}</p>
           </div>
         {error && <div className="mt-4"><ErrorState message={error} /></div>}
-        <div key={registerMode ? "register" : "login"} className="mt-5 animate-in slide-in-from-left duration-300 md:mt-7 md:space-y-1">
+        <div className="mt-5 md:mt-7 md:space-y-1">
           {registerMode ? (
+            otpEmail ? (
+              /* Langkah 2 — masukkan kode OTP dari email */
+              <form onSubmit={(e) => { e.preventDefault(); void submitOtp(); }} className="space-y-3 md:space-y-4" noValidate>
+                <div className="space-y-2">
+                  <label htmlFor="otp-code" className="text-sm font-medium text-neutral-900">Kode verifikasi</label>
+                  <input
+                    id="otp-code"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    maxLength={6}
+                    placeholder="6 digit kode"
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
+                    className={`${fieldInput(false)} text-center text-lg tracking-[0.4em]`}
+                  />
+                </div>
+                <Button type="submit" className="w-full" disabled={otp.length !== 6 || submittingRef.current}>
+                  <MailCheck className="mr-2 inline size-4" aria-hidden="true" />{submittingRef.current ? "Memverifikasi..." : "Verifikasi & Daftar"}
+                </Button>
+              </form>
+            ) : (
             <form onSubmit={registerForm.handleSubmit(submitRegister)} className="space-y-3 md:space-y-4" noValidate>
               <div className="space-y-2">
                 <label htmlFor="reg-username" className="text-sm font-medium text-neutral-900">Username</label>
@@ -161,6 +184,11 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
                 <label htmlFor="reg-name" className="text-sm font-medium text-neutral-900">Nama lengkap</label>
                 <input id="reg-name" placeholder="Nama lengkap" className={fieldInput(!!registerForm.formState.errors.name)} aria-invalid={!!registerForm.formState.errors.name} {...registerForm.register("name")} />
                 {showFieldError(registerForm.formState.errors.name?.message)}
+              </div>
+              <div className="space-y-2">
+                <label htmlFor="reg-email" className="text-sm font-medium text-neutral-900">Email</label>
+                <input id="reg-email" type="email" placeholder="nama@email.com" autoComplete="email" className={fieldInput(!!registerForm.formState.errors.email)} aria-invalid={!!registerForm.formState.errors.email} {...registerForm.register("email")} />
+                {showFieldError(registerForm.formState.errors.email?.message)}
               </div>
               <div className="space-y-2">
                 <label htmlFor="reg-password" className="text-sm font-medium text-neutral-900">Password</label>
@@ -174,6 +202,7 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
               </div>
               <Button type="submit" className="w-full" disabled={registerForm.formState.isSubmitting}>{registerForm.formState.isSubmitting ? "Memproses..." : "Daftar"}</Button>
             </form>
+            )
           ) : (
             <form onSubmit={loginForm.handleSubmit(submitLogin)} className="space-y-3 md:space-y-4" noValidate>
               <div className="space-y-2">
@@ -191,8 +220,7 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
             </form>
           )}
         </div>
-        {!registerMode && <><div className="my-4 flex items-center gap-3 text-xs text-neutral-500"><span className="h-px flex-1 bg-neutral-200" />atau<span className="h-px flex-1 bg-neutral-200" /></div><Button type="button" variant="secondary" onClick={googleLogin} className="flex w-full items-center justify-center gap-2"><GoogleIcon />Masuk dengan Google</Button></>}
-        {registerMode && <button type="button" onClick={() => { setError(null); setRegisterMode(false); }} className="mt-3 flex w-full items-center justify-center gap-2 text-sm font-semibold text-primary-800"><ArrowLeft className="size-4" />Kembali ke login</button>}
+        {registerMode && <button type="button" onClick={() => { setError(null); setRegisterMode(false); setOtpEmail(null); setOtp(""); }} className="mt-3 flex w-full items-center justify-center gap-2 text-sm font-semibold text-primary-800"><ArrowLeft className="size-4" />Kembali ke login</button>}
       </section>
       </main>
       </div>

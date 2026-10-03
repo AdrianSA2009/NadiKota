@@ -8,12 +8,18 @@ export interface NearbyTicket {
 }
 
 export interface TicketDetail extends NearbyTicket {
-  status: "reported" | "verified" | "queued" | "in_progress" | "completed" | "needs_review";
+  status: "reported" | "verified" | "queued" | "in_progress" | "completed" | "rejected" | "cancelled" | "needs_review";
   priorityLabel: "urgent" | "waiting" | "completed";
+  /** Alasan admin membatalkan tiket — ditampilkan di detail saat status cancelled. */
+  cancelReason?: string | null;
   latitude: number;
   longitude: number;
   createdAt: string;
-  photos: { type: "before" | "after"; url: string }[];
+  photos: { type: "before" | "after"; photoUrl?: string | null }[];
+  /** Saat admin menyetujui tiket (langkah "Diverifikasi"). */
+  verifiedAt?: string | null;
+  /** Riwayat transisi status — dipakai timestamp "Perjalanan tiket". */
+  statusHistories?: { to_status: string; created_at: string }[];
 }
 
 export async function createReport(formData: FormData, idempotencyKey = crypto.randomUUID()) {
@@ -33,6 +39,10 @@ export type PhotoScreening = {
   detection?: "direct" | "rephoto" | "ai_rephoto";
   signals?: string[];
   has_camera_exif?: boolean;
+  /** Foto tersensor (wajah/plat) sebagai data URL — dipakai menggantikan file asli. */
+  redactedUrl?: string | null;
+  redacted_faces?: number;
+  redacted_plates?: number;
 };
 
 export async function screenPhoto(photo: File): Promise<string> {
@@ -75,10 +85,6 @@ export async function getReport(id: number) {
 export async function getTicket(id: number): Promise<TicketDetail> {
   const response = await apiClient.get<{ data: TicketDetail }>(`/tickets/${id}`);
   return response.data.data;
-}
-
-export async function submitTicketFeedback(id: number, feedback: "fixed" | "not_fixed"): Promise<void> {
-  await apiClient.post(`/tickets/${id}/feedback`, { feedback });
 }
 
 export async function findNearbyTicket(category: NearbyTicket["category"], latitude: number, longitude: number): Promise<NearbyTicket | null> {

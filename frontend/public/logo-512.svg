@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="NadiKota">
+  <defs>
+    <linearGradient id="nk-bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1E4E82"/>
+      <stop offset="1" stop-color="#0E2747"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="512" height="512" rx="120" fill="url(#nk-bg)"/>
+
+  <g transform="translate(256 256) scale(5.2) translate(-32 -30)">
+    <!-- Pin lokasi -->
+    <path d="M32 13c-8.3 0-15 6.7-15 15 0 10.5 13.6 21.6 14.2 22.1.5.4 1.2.4 1.7 0C33.4 49.6 47 38.5 47 28c0-8.3-6.7-15-15-15Z"
+          fill="#FFFFFF" fill-opacity=".14" stroke="#FFFFFF" stroke-width="2.4" stroke-linejoin="round"/>
+    <!-- Jalan retak -->
+    <path d="M25 37c-1.6-3.4-2.4-6-2.4-9 0-5.2 4.2-9.4 9.4-9.4s9.4 4.2 9.4 9.4c0 3-.8 5.6-2.4 9"
+          fill="none" stroke="#7FD4C1" stroke-width="3" stroke-linecap="round"/>
+    <!-- Lubang -->
+    <ellipse cx="32" cy="31" rx="5.2" ry="3.8" fill="#0E2747"/>
+    <path d="M28.6 30.2c1.9 1.6 5 2.2 7.4.9" fill="none" stroke="#5FC7B4" stroke-width="1.4" stroke-linecap="round"/>
+    <!-- Titik -->
+    <circle cx="32" cy="24.5" r="3.1" fill="#FFFFFF"/>
+  </g>
+</svg>

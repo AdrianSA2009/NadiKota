@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { Gift, HandHeart, Landmark, LogOut, Map, Settings, ChevronUp, LayoutDashboard, ClipboardCheck, Truck, Users, ClipboardList, type LucideIcon } from "lucide-react";
+import { Gift, HandHeart, LogOut, Map, Settings, ChevronUp, LayoutDashboard, ClipboardCheck, Truck, Users, ClipboardList, type LucideIcon } from "lucide-react";
+import Image from "next/image";
 import { useUnreadBadges } from "@/features/notifications/useUnreadBadges";
 import { useKontribusiPanel } from "@/lib/kontribusiPanelStore";
 import { useTukarPoinPanel } from "@/lib/tukarPoinPanelStore";
@@ -87,8 +88,9 @@ export function SidebarNav({ activePath, publicVisitor = false }: SidebarNavProp
 
   return (
     <aside className="relative z-[1010] hidden flex-col border-r border-neutral-200 bg-neutral-0 md:flex md:w-60 md:shrink-0" aria-label="Navigasi utama">
-      <div className="flex items-center gap-2 px-5 py-4">
-        <Landmark className="size-6 text-primary-800" aria-hidden="true" />
+      <div className="flex items-center gap-2.5 px-5 py-4">
+        {/* Logo NadiKota (SVG resmi) — unoptimized: aset lokal, tanpa perlu remotePatterns */}
+        <Image src="/logo-mark.svg" alt="Logo NadiKota" width={36} height={36} unoptimized className="size-9 rounded-xl" priority />
         <span className="text-lg font-bold text-neutral-900">NadiKota</span>
       </div>
 

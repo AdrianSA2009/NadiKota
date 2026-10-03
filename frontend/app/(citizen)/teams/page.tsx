@@ -83,6 +83,7 @@ function TeamsContent() {
       setTaskPhoto(null);
       setOpenTaskId(null);
       void queryClient.invalidateQueries({ queryKey: ["field-tickets"] });
+      void queryClient.invalidateQueries({ queryKey: ["tickets-map"] });
     },
     onError: (e) => showToast(e instanceof Error ? e.message : "Gagal mengirim bukti.", "info"),
   });
@@ -92,6 +93,8 @@ function TeamsContent() {
     onSuccess: (d) => {
       showToast(d.message, "success");
       void queryClient.invalidateQueries({ queryKey: ["field-tickets"] });
+      // Peta: status tiket berubah (dalam perbaikan) — segarkan.
+      void queryClient.invalidateQueries({ queryKey: ["tickets-map"] });
     },
     onError: (e) => showToast(e instanceof Error ? e.message : "Gagal memulai tiket.", "info"),
   });

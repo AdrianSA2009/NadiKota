@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronUp, Gift, LogIn, LogOut, Menu, Settings, Users, X } from "lucide-react";
+import { Camera, ChevronUp, Gift, LogIn, LogOut, Menu, Settings, Users, X } from "lucide-react";
 import { apiClient } from "@/lib/apiClient";
 import { useAuthStore } from "@/features/auth/authStore";
 import { useKontribusiPanel } from "@/lib/kontribusiPanelStore";
@@ -18,6 +18,8 @@ const LocationMap = dynamic(() => import("@/components/map/LocationMap"), { ssr:
 
 const STAFF = ["admin", "super_admin", "field_team"] as const;
 const ADMIN = ["admin", "super_admin"] as const;
+/** Batas request peta — sama dengan batas server (limit: 200). */
+const MAP_LIMIT = 200;
 
 /** Drawer menu admin (mobile) — hanya admin/super_admin; tombolnya di dalam search bar (navAction LocationMap). */
 function AdminQuickMenu({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -148,6 +150,8 @@ function ProfileMenu({ onLogin, placement = "floating" }: { onLogin: () => void;
       >
         <span className="flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary-50 text-xs font-bold text-primary-800" aria-hidden="true">
           {user.avatarUrl
+            // Avatar dari API Laravel (URL dinamis) — next/image butuh remotePatterns; <img> cukup & konsisten dgn halaman lain.
+            // eslint-disable-next-line @next/next/no-img-element
             ? <img src={user.avatarUrl} alt="" className="size-7 object-cover" />
             : user.name.charAt(0).toUpperCase()}
         </span>
@@ -196,18 +200,24 @@ export default function PetaPage() {
   const openLogin = () => router.push("/login");
   const user = useAuthStore((s) => s.user);
   const [quickMenuOpen, setQuickMenuOpen] = useState(false);
+  // Real-time: polling ringan tiap 20 detik — laporan/dispatch baru langsung muncul di peta,
+  // tanpa perlu refresh. Berhenti saat tab tidak terlihat agar tidak boros.
   const { data, isError } = useQuery({
     queryKey: ["tickets-map"],
     queryFn: async () => {
       const res = await apiClient.get<TicketListResponse>("/tickets/map", {
-        params: { limit: 200 },
+        params: { limit: MAP_LIMIT },
       });
       return res.data;
     },
-    staleTime: 30_000,
+    staleTime: 15_000,
+    refetchInterval: 20_000,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
   });
 
   const tickets = data?.data ?? [];
+  // true = server mungkin masih punya tiket lain di luar batas.
   const isStaff = Boolean(user && (ADMIN as readonly string[]).includes(user.role));
 
   return (
@@ -245,6 +255,21 @@ export default function PetaPage() {
         }
       />
       <ProfileMenu onLogin={openLogin} />
+
+      {/* Lapor kerusakan — di bawah search bar sisi KIRI: kanan atas dipakai avatar + dropdown profil,
+          kiri bawah ada kontrol zoom/locate & bottom nav — kolom kiri-atas bebas (satu tombol utk mobile & desktop).
+          Disembunyikan utk admin & tim lapangan (mereka tak melapor). */}
+      {!(user && (STAFF as readonly string[]).includes(user.role)) && (
+        <button
+          type="button"
+          onClick={() => (user ? router.push("/report") : openLogin())}
+          aria-label="Lapor kerusakan"
+          className="absolute left-3 top-16 z-[925] flex items-center gap-2 rounded-full bg-primary-800 px-4 py-2.5 text-sm font-semibold text-neutral-0 shadow-lg transition hover:bg-primary-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2 md:left-4"
+        >
+          <Camera className="size-4" aria-hidden="true" />
+          Lapor Kerusakan
+        </button>
+      )}
       <AdminQuickMenu open={quickMenuOpen} onClose={() => setQuickMenuOpen(false)} />
 
       {/* Error banner — top center, doesn't block map */}

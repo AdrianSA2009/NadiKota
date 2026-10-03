@@ -73,6 +73,8 @@ export function useAssignForm({ ticket, teams, onDone, onError }: { ticket: Disp
       void queryClient.invalidateQueries({ queryKey: ["dispatch-tickets"] });
       void queryClient.invalidateQueries({ queryKey: ["tickets"] });
       void queryClient.invalidateQueries({ queryKey: ["admin-tickets"] });
+      // Peta ikut segar: penugasan baru harus langsung terlihat di peta.
+      void queryClient.invalidateQueries({ queryKey: ["tickets-map"] });
       void queryClient.invalidateQueries({ queryKey: ["teams"] });
       void queryClient.invalidateQueries({ queryKey: ["field-teams"] });
       void queryClient.invalidateQueries({ queryKey: ["team"] });
@@ -94,7 +96,7 @@ export function TicketSummary({ ticket, photo = true, compact = false }: { ticke
           <p className="text-xs text-neutral-500">{ticket.ticketNumber}</p>
           <h3 className="truncate font-semibold text-neutral-900">{formatCategory(ticket.category)}</h3>
         </div>
-        <Badge variant={ticket.priorityLabel === "urgent" ? "urgent" : "waiting"} />
+        <Badge variant={ticket.status === "in_progress" && ticket.reviewStatus === "submitted" ? "assessing" : ticket.status === "completed" ? "done" : ticket.status === "cancelled" ? "cancelled" : ticket.status === "rejected" ? "urgent" : ticket.status} />
       </div>
       <dl className={`mt-3 space-y-1.5 text-sm ${compact ? "" : ""}`}>
         <div className="flex gap-2">
@@ -216,9 +218,10 @@ export function TeamPicker({ chosen, onChoose, search, onSearch, teams, recommen
         onChange={(e) => { onSearch(e.target.value); if (variant === "dropdown") setOpen(true); }}
         onFocus={() => { setEditing(true); if (variant === "dropdown") setOpen(true); }}
         onBlur={() => {
+          // Editing selesai → input menampilkan nama tim terpilih.
+          // JANGAN kosongkan filter di sini: nama tim hasil autofill akan ikut tersaring
+          // dan daftar tampak kosong saat pengguna mencoba menghapus/mengetik ulang.
           setEditing(false);
-          // Sudah ada pilihan → buang sisa kata kunci, filter kembali terbuka penuh.
-          if (chosenTeam) onSearch("");
         }}
         onKeyDown={(e) => { if (e.key === "Escape") setOpen(false); }}
         placeholder="Cari tim (nama / lokasi)…"

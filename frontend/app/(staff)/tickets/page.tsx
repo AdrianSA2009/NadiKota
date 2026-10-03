@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useRef, useState, type ComponentProps } from "react";
+import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, ChevronDown, CircleHelp, CircleX, ClipboardList, Clock, Construction, Eye, ImagePlus, Lightbulb, Loader2, TriangleAlert, Truck, Users } from "lucide-react";
@@ -369,8 +370,7 @@ function TicketDetail({ ticket }: { ticket: Ticket }) {
           onClose={() => setBeforeOpen(false)}
           footer={<Button type="button" variant="secondary" className="flex-1" onClick={() => setBeforeOpen(false)}>Tutup</Button>}
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={ticket.photoUrl} alt={`Foto laporan ${ticket.ticketNumber}`} className="w-full rounded-lg border border-neutral-200 object-contain" />
+          <Image src={ticket.photoUrl} alt={`Foto laporan ${ticket.ticketNumber}`} width={1024} height={768} unoptimized className="w-full rounded-lg border border-neutral-200 object-contain" />
         </Modal>
       )}
 
@@ -382,7 +382,7 @@ function TicketDetail({ ticket }: { ticket: Ticket }) {
           onClose={() => setProofOpen(false)}
           footer={<Button type="button" variant="secondary" className="flex-1" onClick={() => setProofOpen(false)}>Tutup</Button>}
         >
-          <img src={ticket.afterPhotoUrl} alt={`Bukti hasil perbaikan ${ticket.ticketNumber}`} className="w-full rounded-lg border border-neutral-200 object-contain" />
+          <Image src={ticket.afterPhotoUrl} alt={`Bukti hasil perbaikan ${ticket.ticketNumber}`} width={1024} height={768} unoptimized className="w-full rounded-lg border border-neutral-200 object-contain" />
         </Modal>
       )}
 

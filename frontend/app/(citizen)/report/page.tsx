@@ -32,6 +32,8 @@ export default function ReportPage() {
   const [screening, setScreening] = useState<PhotoScreening | null>(null);
   const [screeningLoading, setScreeningLoading] = useState(false);
   const [captureReset, setCaptureReset] = useState(0);
+  // Foto sudah disensor backend → jangan jalankan screening AI lagi atas foto yang sama.
+  const redactionRef = useRef(false);
   const touchStart = useRef(0);
   const [dragY, setDragY] = useState(0);
 
@@ -40,7 +42,13 @@ export default function ReportPage() {
 
   // Screening AI: deteksi jenis kerusakan + keparahan sebelum laporan dikirim.
   useEffect(() => {
-    if (!photo) { setScreening(null); return; }
+    // Tanpa foto tidak ada yang perlu disaring (screening tetap dibersihkan di clearPhoto).
+    if (!photo) return;
+    if (redactionRef.current) {
+      // Foto tersensor sudah discreening backend — jangan jalankan ulang.
+      redactionRef.current = false;
+      return;
+    }
     let cancelled = false;
     setScreeningLoading(true);
     setScreening(null);
@@ -53,6 +61,13 @@ export default function ReportPage() {
           if (cancelled) return;
           if (result.status !== "pending") {
             if (result.status === "done" && result.ok && result.category) setCategory(result.category);
+            // Foto tersensor (wajah/plat) menggantikan file asli sebelum dikirim.
+            if (result.status === "done" && result.redactedUrl) {
+              const res = await fetch(result.redactedUrl);
+              const blob = await res.blob();
+              redactionRef.current = true; // cegah efek screening berjalan ulang atas foto tersensor
+              setPhoto(new File([blob], "laporan.jpg", { type: "image/jpeg" }));
+            }
             setScreening(result); setScreeningLoading(false); return;
           }
         }
@@ -63,6 +78,16 @@ export default function ReportPage() {
     })();
     return () => { cancelled = true; };
   }, [photo]);
+
+  // Foto dihapus (ambil ulang / reset) → bersihkan hasil screening lama.
+  const clearPhoto = () => {
+    setPhoto(null);
+    setScreening(null);
+    setScreeningLoading(false);
+    redactionRef.current = false;
+    setCaptureReset((n) => n + 1);
+    setError(null);
+  };
 
   const flushOutbox = useCallback(async () => {
     if (!navigator.onLine) return;
@@ -113,8 +138,9 @@ export default function ReportPage() {
       {step === 1 && <section><h2 className="text-lg font-semibold text-neutral-900">Ambil foto</h2><p className="mt-1 text-sm">Gunakan kamera untuk memotret kerusakan.</p><div className="mt-4"><CameraCapture key={captureReset} onCapture={setPhoto} /></div>
         {screeningLoading && <p role="status" className="mt-3 text-sm text-primary-700">AI sedang memeriksa foto…</p>}
         {screening?.status === "unavailable" && <p role="status" className="mt-3 text-sm text-warning-800">Pemeriksaan AI tidak tersedia — foto tetap bisa dikirim dan akan divalidasi setelah laporan masuk.</p>}
-        {screenFail && <div role="alert" className="mt-3 rounded-lg border border-danger-600 bg-danger-50 px-3 py-2.5 text-sm text-danger-700"><p className="font-semibold">{screenFail.title}</p><p className="mt-1">{screenFail.body}</p><Button type="button" variant="danger" className="mt-2" onClick={() => { setPhoto(null); setScreening(null); setCaptureReset((n) => n + 1); setError(null); }}>Ambil foto ulang</Button></div>}
+        {screenFail && <div role="alert" className="mt-3 rounded-lg border border-danger-600 bg-danger-50 px-3 py-2.5 text-sm text-danger-700"><p className="font-semibold">{screenFail.title}</p><p className="mt-1">{screenFail.body}</p><Button type="button" variant="danger" className="mt-2" onClick={clearPhoto}>Ambil foto ulang</Button></div>}
         {screening?.status === "done" && screening.ok && <div role="status" className="mt-3 rounded-lg border border-success-600 bg-success-50 px-3 py-2.5 text-sm text-success-700"><p className="font-semibold">Terdeteksi: {categoryLabel[screening.category ?? "other"]}{screening.category === "pothole" && screening.severity ? ` — tingkat keparahan ${severityLabel[screening.severity] ?? screening.severity}` : ""}</p></div>}
+        {(screening?.redacted_faces ?? 0) + (screening?.redacted_plates ?? 0) > 0 && <p role="status" className="mt-3 rounded-lg border border-info-600 bg-info-50 px-3 py-2.5 text-sm text-info-800">Wajah dan/atau plat nomor kendaraan pada foto telah disensor otomatis demi privasi.</p>}
       </section>}
       {step === 2 && <section><h2 className="text-lg font-semibold text-neutral-900">Lokasi dan kategori</h2><div className="mt-4"><LocationPicker onLocation={(lat, lng) => setLocation({ lat, lng })} /></div><fieldset className="mt-6"><legend className="font-medium text-neutral-900">Kategori kerusakan</legend><div className="mt-3 grid gap-2">{([["pothole", "Jalan berlubang"], ["street_light", "PJU mati"], ["other", "Lainnya"]] as const).map(([value, label]) => <Button key={value} type="button" variant={category === value ? "primary" : "secondary"} onClick={() => setCategory(value)}>{label}</Button>)}</div></fieldset></section>}
       {step === 3 && <section><h2 className="text-lg font-semibold text-neutral-900">Kirim laporan</h2><p className="mt-2 text-sm">Periksa data laporan sebelum dikirim.</p><dl className="mt-4 space-y-2 text-sm"><div><dt className="font-medium">Foto</dt><dd>{photo ? "Siap dikirim" : "Belum tersedia"}</dd></div><div><dt className="font-medium">Lokasi</dt><dd>{location ? `${location.lat.toFixed(6)}, ${location.lng.toFixed(6)}` : "Belum tersedia"}</dd></div></dl></section>}

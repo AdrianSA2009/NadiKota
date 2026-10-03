@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Camera, X } from "lucide-react";
+import { Camera, CircleHelp, Construction, Lightbulb, X } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/apiClient";
 import { Button } from "@/components/ui/Button";
@@ -53,6 +53,46 @@ const PoinCard = ({ name, username, avatarUrl }: { name: string; username?: stri
   );
 };
 
+import type { Ticket } from "@/features/dashboard/dashboardTypes";
+
+/** Badge riwayat ikut STATUS kanonik — selalu sinkron dgn halaman detail (bukan priorityLabel). */
+function reportBadge(t: Pick<Ticket, "status">): "done" | "urgent" | "cancelled" | "reported" | "verified" | "queued" | "in_progress" | "needs_review" {
+  if (t.status === "completed") return "done";
+  if (t.status === "rejected") return "urgent";
+  if (t.status === "cancelled") return "cancelled";
+  if (t.status === "verified") return "verified";
+  if (t.status === "queued") return "queued";
+  if (t.status === "in_progress") return "in_progress";
+  if (t.status === "needs_review") return "needs_review";
+  return "reported";
+}
+
+const CATEGORY_META = {
+  pothole: { label: "Jalan berlubang", icon: Construction },
+  street_light: { label: "PJU mati", icon: Lightbulb },
+  other: { label: "Lainnya", icon: CircleHelp },
+} as const;
+
+/** Kartu riwayat laporan — ikon kategori + nomor/tanggal + badge status. */
+function ReportRow({ t, onOpen }: { t: Ticket; onOpen: () => void }) {
+  const meta = CATEGORY_META[t.category];
+  const Icon = meta.icon;
+  return (
+    <Link href={`/tickets/${t.id}`} onClick={onOpen} className="group flex items-center gap-3 rounded-xl border border-neutral-200 bg-neutral-0 p-3 transition hover:-translate-y-0.5 hover:border-primary-300 hover:shadow-md">
+      <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary-50 text-primary-700 transition group-hover:bg-primary-800 group-hover:text-neutral-0" aria-hidden="true">
+        <Icon className="size-6" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm font-semibold text-neutral-900">{meta.label}</span>
+        <span className="mt-0.5 block truncate text-xs text-neutral-500">
+          {t.ticketNumber} · {new Date(t.createdAt).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}
+        </span>
+      </span>
+      <Badge variant={reportBadge(t)} />
+    </Link>
+  );
+}
+
 function GuestGate({ onLogin }: { onLogin: () => void }) {
   return (
     <section className="flex min-h-[40vh] flex-col items-center justify-center text-center">
@@ -102,17 +142,16 @@ export function KontribusiPanel() {
   const setHalf = useKontribusiPanel((s) => s.setHalf);
   // Menu Kontribusi disembunyikan untuk role ini (lihat SidebarNav.hideRoles) — panel juga harus hilang.
   const isStaffRole = !!user && ["admin", "super_admin", "field_team"].includes(user.role);
-  const canViewTickets = user?.role === "admin" || user?.role === "super_admin";
   const { data } = useQuery({
     queryKey: ["my-reports"],
     queryFn: async () => {
-      const res = await apiClient.get<TicketListResponse>("/tickets", {
-        params: { per_page: 50, sort: "created_at", direction: "desc" },
+      const res = await apiClient.get<TicketListResponse>("/me/reports", {
+        params: { per_page: 50 },
       });
       return res.data;
     },
-    // Endpoint /tickets hanya untuk admin/super_admin — citizen tidak memanggil (hindari 403)
-    enabled: canViewTickets,
+    // Riwayat laporan milik sendiri — endpoint publik utk semua role login.
+    enabled: Boolean(user),
   });
 
   const tickets = data?.data ?? [];
@@ -210,15 +249,7 @@ export function KontribusiPanel() {
                   <ul className="space-y-2">
                     {tickets.map((t) => (
                       <li key={t.id}>
-                        <Link href={`/tickets/${t.id}`} onClick={close} className="flex items-center gap-3 rounded-xl border border-neutral-200 bg-neutral-0 p-3 transition hover:border-primary-200 hover:shadow-sm">
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-xs font-medium text-neutral-500">{t.ticketNumber}</p>
-                            <p className="mt-0.5 truncate text-sm font-semibold text-neutral-900">
-                              {t.category === "pothole" ? "Jalan berlubang" : t.category === "street_light" ? "PJU mati" : "Lainnya"}
-                            </p>
-                          </div>
-                          <Badge variant={t.priorityLabel === "urgent" ? "urgent" : t.priorityLabel === "waiting" ? "waiting" : "done"} />
-                        </Link>
+                        <ReportRow t={t} onOpen={close} />
                       </li>
                     ))}
                   </ul>
@@ -268,8 +299,8 @@ export function KontribusiPanel() {
 
         {user && <PoinCard name={user.name} username={user.username} avatarUrl={user.avatarUrl} />}
 
-        {/* Konten — scroll di dalam sheet */}
-        <div className="flex-1 overflow-y-auto px-4 pb-24">
+        {/* Konten — scroll di dalam sheet, jarak atas dari kartu profil/poin */}
+        <div className="flex-1 overflow-y-auto px-4 pb-28 pt-4">
           {!user ? (
             <GuestGate onLogin={openLogin} />
           ) : (
@@ -278,15 +309,7 @@ export function KontribusiPanel() {
                 <ul className="space-y-2">
                   {tickets.map((t) => (
                     <li key={t.id}>
-                      <Link href={`/tickets/${t.id}`} onClick={close} className="flex items-center gap-3 rounded-xl border border-neutral-200 bg-neutral-0 p-3 transition hover:border-primary-200 hover:shadow-sm">
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-xs font-medium text-neutral-500">{t.ticketNumber}</p>
-                          <p className="mt-0.5 truncate text-sm font-semibold text-neutral-900">
-                            {t.category === "pothole" ? "Jalan berlubang" : t.category === "street_light" ? "PJU mati" : "Lainnya"}
-                          </p>
-                        </div>
-                        <Badge variant={t.priorityLabel === "urgent" ? "urgent" : t.priorityLabel === "waiting" ? "waiting" : "done"} />
-                      </Link>
+                      <ReportRow t={t} onOpen={close} />
                     </li>
                   ))}
                 </ul>

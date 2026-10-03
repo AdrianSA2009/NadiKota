@@ -27,6 +27,7 @@ const inputError = "mt-1.5 min-h-11 w-full rounded-xl border border-danger-600 b
 const profileSchema = z.object({
   username: z.string().min(1, "Username belum diisi").min(3, "Username minimal 3 karakter").max(40, "Username maksimal 40 karakter").regex(/^[a-zA-Z0-9_-]+$/, "Hanya huruf, angka, dan tanda hubung."),
   name: z.string().min(1, "Nama belum diisi").min(2, "Nama minimal 2 karakter"),
+  email: z.string().min(1, "Email belum diisi").email("Format email tidak valid"),
 });
 const passwordSchema = z.object({
   currentPassword: z.string().min(1, "Password saat ini wajib diisi"),
@@ -63,7 +64,7 @@ export default function SettingsPage() {
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [config, setConfig] = useState<Config | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-  const profileForm = useForm<ProfileValues>({ resolver: zodResolver(profileSchema), mode: "onChange", defaultValues: { username: user?.username ?? "", name: user?.name ?? "" } });
+  const profileForm = useForm<ProfileValues>({ resolver: zodResolver(profileSchema), mode: "onChange", defaultValues: { username: user?.username ?? "", name: user?.name ?? "", email: user?.email ?? "" } });
   const passwordForm = useForm<PasswordValues>({ resolver: zodResolver(passwordSchema), mode: "onChange" });
   const watchedUsername = profileForm.watch("username");
   useEffect(() => {
@@ -84,7 +85,7 @@ export default function SettingsPage() {
 
   const configQuery = useQuery({ queryKey: ["priority-settings"], queryFn: getConfig, enabled: isAdmin });
   const profile = useMutation({
-    mutationFn: (values: ProfileValues) => updateProfile(values.username, values.name),
+    mutationFn: (values: ProfileValues) => updateProfile(values.username, values.name, values.email),
     onSuccess: (r) => { setAuth(r.user); setFeedback({ type: "ok", text: "Profil berhasil diperbarui." }); void queryClient.invalidateQueries({ queryKey: ["me"] }); },
     onError: (e) => setFeedback({ type: "err", text: e instanceof Error ? e.message : "Gagal menyimpan profil." }),
   });
@@ -158,6 +159,7 @@ export default function SettingsPage() {
         <form className="mt-5 space-y-4" onSubmit={profileForm.handleSubmit(submitProfile)} noValidate>
           <div><label htmlFor="settings-username" className="text-sm font-medium text-neutral-900">Username</label><input id="settings-username" placeholder="Masukkan username, mis. johndoe" className={profileForm.formState.errors.username ? inputError : input} aria-invalid={!!profileForm.formState.errors.username} aria-describedby={profileForm.formState.errors.username ? "settings-username-error" : undefined} {...profileForm.register("username")} />{showFieldError(profileForm.formState.errors.username?.message)}<p className="mt-1.5 text-xs text-neutral-500">Minimal 3 karakter, hanya huruf, angka, dan tanda hubung.</p></div>
           <div><label htmlFor="settings-name" className="text-sm font-medium text-neutral-900">Nama lengkap</label><input id="settings-name" placeholder="Masukkan nama lengkap" className={profileForm.formState.errors.name ? inputError : input} aria-invalid={!!profileForm.formState.errors.name} aria-describedby={profileForm.formState.errors.name ? "settings-name-error" : undefined} {...profileForm.register("name")} />{showFieldError(profileForm.formState.errors.name?.message)}<p className="mt-1.5 text-xs text-neutral-500">Nama ini ditampilkan pada profil dan riwayat laporan.</p></div>
+          <div><label htmlFor="settings-email" className="text-sm font-medium text-neutral-900">Email</label><input id="settings-email" type="email" placeholder="nama@email.com" autoComplete="email" className={profileForm.formState.errors.email ? inputError : input} aria-invalid={!!profileForm.formState.errors.email} aria-describedby={profileForm.formState.errors.email ? "settings-email-error" : undefined} {...profileForm.register("email")} />{showFieldError(profileForm.formState.errors.email?.message)}<p className="mt-1.5 text-xs text-neutral-500">Email untuk notifikasi dan pemulihan akun.</p></div>
           <Button type="submit" disabled={profile.isPending}>{profile.isPending ? "Menyimpan..." : "Simpan profil"}</Button>
         </form>
       </Card>

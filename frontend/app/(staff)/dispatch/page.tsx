@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { ChevronDown, CircleHelp, ClipboardCheck, Clock, Construction, Hourglass, Lightbulb, ListFilter, Search, Truck, Users, Wrench } from "lucide-react";
+import { ChevronDown, CircleHelp, ClipboardCheck, Clock, Construction, Hourglass, Lightbulb, ListFilter, ListOrdered, Search, Truck, Users, Wrench } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -309,6 +309,11 @@ export default function DispatchPage() {
                           <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-primary-800 px-2.5 py-1 text-xs font-semibold text-neutral-0">
                             <Wrench className="size-3.5" aria-hidden="true" />
                             Dalam Perbaikan
+                          </span>
+                        ) : ticket.status === "queued" ? (
+                          <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-warning-600 bg-warning-50 px-2.5 py-1 text-xs font-semibold text-warning-800">
+                            <ListOrdered className="size-3.5" aria-hidden="true" />
+                            Dalam Antrean
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-warning-600 bg-warning-50 px-2.5 py-1 text-xs font-semibold text-warning-800">

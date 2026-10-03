@@ -12,8 +12,9 @@ export const NOTIF_TYPE_PATH: Record<string, string> = {
 };
 
 /**
- * Badge merah per tab menu — jumlah notifikasi belum dibaca per tipe,
- * polling tiap 30 detik. Klik menu → tandai tipe tsb sudah dibaca.
+ * Badge merah per tab menu — jumlah notifikasi belum dibaca per tipe.
+ * Polling tiap 10 detik + langsung refresh saat tab kembali aktif/fokus,
+ * jadi notifikasi baru terlihat tanpa refresh halaman.
  */
 export function useUnreadBadges() {
   const user = useAuthStore((s) => s.user);
@@ -23,7 +24,11 @@ export function useUnreadBadges() {
     queryKey: ["notif-count"],
     queryFn: getUnreadCount,
     enabled: Boolean(user),
-    refetchInterval: 30_000,
+    staleTime: 5_000,
+    refetchInterval: 10_000,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
   });
 
   const readType = useMutation({

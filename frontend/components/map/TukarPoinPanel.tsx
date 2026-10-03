@@ -1,10 +1,10 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Coins, Gift, X } from "lucide-react";
+import { Coins, Gift, Ticket, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { LoginModal } from "@/components/auth/LoginModal";
 import { apiClient } from "@/lib/apiClient";
 import { useToastStore } from "@/lib/toastStore";
 import { useAuthStore } from "@/features/auth/authStore";
@@ -23,13 +23,73 @@ async function fetchPoints(): Promise<{ balance: number }> {
   return res.data.data;
 }
 
+type PointsData = { balance: number; loading: boolean; affordableCount: number; total: number; onMyGifts: () => void };
+
+/** Header panel Tukar Poin — gradasi navy → teal, judul gradient, kartu poin "frosted". */
+function TukarPoinHeader({ onClose, points }: { onClose?: () => void; points?: PointsData }) {
+  const pct = points && points.total > 0 ? Math.round((points.affordableCount / points.total) * 100) : 0;
+  return (
+    <div className="relative overflow-hidden bg-gradient-to-br from-primary-700 via-primary-800 to-primary-900 px-5 py-5 text-neutral-0">
+      {/* Ornamen teal + glow navy */}
+      <div className="absolute -right-10 -top-12 size-36 rounded-full bg-accent-600/25" aria-hidden="true" />
+      <div className="absolute -right-1 top-14 size-16 rounded-full bg-accent-500/15" aria-hidden="true" />
+      <div className="absolute -bottom-12 -left-8 size-32 rounded-full bg-primary-600/40 blur-lg" aria-hidden="true" />
+
+      <div className="relative flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.2em] text-accent-500">
+            <Gift className="size-3.5" aria-hidden="true" />
+            Hadiah Kontribusi
+          </p>
+          <h2 className="mt-1.5 bg-gradient-to-r from-neutral-0 via-neutral-0 to-accent-500 bg-clip-text text-2xl font-extrabold tracking-tight text-transparent">
+            Tukar Poin
+          </h2>
+          <p className="mt-0.5 text-xs text-primary-100/80">Tukarkan poin jadi hadiah nyata</p>
+        </div>
+        {onClose && (
+          <button type="button" onClick={onClose} className="shrink-0 rounded-full border border-neutral-0/20 bg-neutral-0/10 p-2 text-primary-100 transition hover:bg-neutral-0/20" aria-label="Tutup">
+            <X className="size-5" />
+          </button>
+        )}
+      </div>
+
+      {points && (
+        <div className="relative mt-4 overflow-hidden rounded-2xl border border-accent-500/40 bg-neutral-0/10 p-4 shadow-[0_8px_24px_rgba(0,0,0,0.25)] backdrop-blur-sm">
+          <div className="absolute -right-5 -top-7 size-20 rounded-full bg-accent-500/10" aria-hidden="true" />
+          <div className="relative flex items-center justify-between gap-3">
+            <p className="flex items-baseline gap-2">
+              <span className="text-4xl font-extrabold leading-none text-accent-500">{points.loading ? "…" : points.balance}</span>
+              <span className="text-xs font-semibold text-primary-100/90">poin kamu</span>
+            </p>
+            <button
+              type="button"
+              onClick={points.onMyGifts}
+              className="flex shrink-0 items-center gap-1.5 rounded-full bg-neutral-0 px-4 py-2 text-xs font-extrabold text-primary-800 shadow-lg transition hover:-translate-y-0.5 hover:bg-primary-50"
+            >
+              <Ticket className="size-4" aria-hidden="true" />
+              Hadiah Saya
+            </button>
+          </div>
+          <div className="relative mt-3 flex items-center justify-between text-xs">
+            <span className="text-primary-100/80">Hadiah siap ditukar</span>
+            <span className="font-bold text-neutral-0">{points.affordableCount} dari {points.total}</span>
+          </div>
+          <div className="relative mt-2 h-2 overflow-hidden rounded-full bg-neutral-0/20">
+            <div className="h-full rounded-full bg-gradient-to-r from-accent-600 to-accent-500 transition-all duration-500" style={{ width: `${pct}%` }} aria-hidden="true" />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function TukarPoinPanel() {
   const user = useAuthStore((s) => s.user);
   const initialized = useAuthStore((s) => s.initialized);
   const { open, closePanel } = useTukarPoinPanel();
   const queryClient = useQueryClient();
   const showToast = useToastStore((s) => s.show);
-  const [loginOpen, setLoginOpen] = useState(false);
+  const router = useRouter();
   const [claimReward, setClaimReward] = useState<RewardItem | null>(null);
   const [claimError, setClaimError] = useState<string | null>(null);
 
@@ -42,19 +102,28 @@ export function TukarPoinPanel() {
   const affordableCount = rewards.filter((r) => balance >= r.pointsCost).length;
 
   const redeemMutation = useMutation({
-    mutationFn: async (rewardId: number) => (await apiClient.post(`/rewards/${rewardId}/redeem`)).data,
-    onSuccess: () => {
+    mutationFn: async (rewardId: number) => (await apiClient.post<{ data: { balance: number; pointsCost: number; message: string; transactionId?: number } }>(`/rewards/${rewardId}/redeem`)).data.data,
+    onSuccess: (result) => {
       showToast("Hadiah berhasil diklaim.", "success");
       setClaimReward(null);
       setClaimError(null);
       void queryClient.invalidateQueries({ queryKey: ["me-points"] });
       void queryClient.invalidateQueries({ queryKey: ["rewards"] });
+      // Langsung ke halaman QR hadiah yang baru diklaim.
+      closePanel();
+      router.push(result.transactionId ? `/hadiah?new=${result.transactionId}` : "/hadiah");
     },
     onError: (e) => setClaimError(e instanceof Error ? e.message : "Gagal menukar hadiah."),
   });
 
+  function openMyGifts() {
+    closePanel();
+    router.push("/hadiah");
+  }
+
   function handleRedeem(reward: RewardItem) {
-    if (!user) { setLoginOpen(true); return; }
+    // Guest → arahkan ke halaman login, bukan modal di atas panel ini.
+    if (!user) { closePanel(); router.push("/login"); return; }
     setClaimError(null);
     setClaimReward(reward);
   }
@@ -79,29 +148,10 @@ export function TukarPoinPanel() {
       >
         <div className="flex h-full flex-col">
           {/* Header gradient + ornamen */}
-          <div className="relative overflow-hidden bg-primary-800 px-5 py-5 text-neutral-0">
-            <div className="absolute -right-6 -top-6 size-24 rounded-full bg-primary-700/60" aria-hidden="true" />
-            <div className="absolute -bottom-8 right-10 size-20 rounded-full bg-accent-600/30" aria-hidden="true" />
-            <div className="relative flex items-start justify-between gap-2">
-              <div>
-                <p className="text-xs font-medium text-primary-100">Hadiah Kontribusi</p>
-                <h2 className="mt-0.5 text-lg font-bold">Tukar Poin</h2>
-                <p className="text-xs text-primary-100/80">Tukarkan poin jadi hadiah nyata</p>
-                {user && <p className="mt-1.5 text-xs font-semibold text-neutral-0">{affordableCount} dari {rewards.length} hadiah siap ditukar</p>}
-              </div>
-              <div className="flex items-center gap-2">
-                {user && (
-                  <div className="rounded-xl border border-accent-500/40 bg-primary-700/70 px-3 py-1.5 text-center backdrop-blur-sm">
-                    <p className="text-lg font-bold text-accent-500">{pointsQuery.isLoading ? "…" : balance}</p>
-                    <p className="text-[10px] font-medium text-primary-100/80">poin kamu</p>
-                  </div>
-                )}
-                <button type="button" onClick={closePanel} className="rounded-lg p-2 text-primary-100 transition-colors hover:bg-primary-700/70" aria-label="Tutup">
-                  <X className="size-5" />
-                </button>
-              </div>
-            </div>
-          </div>
+          <TukarPoinHeader
+            onClose={closePanel}
+            points={user ? { balance, loading: pointsQuery.isLoading, affordableCount, total: rewards.length, onMyGifts: openMyGifts } : undefined}
+          />
           <div className="flex-1 overflow-y-auto bg-neutral-50 px-5 py-4">
             <RewardContent
               points={user ? balance : 0}
@@ -120,26 +170,9 @@ export function TukarPoinPanel() {
         style={{ transform: panelOpen ? "translateY(0)" : "translateY(100%)" }}
       >
         <div className="shrink-0">
-          <div className="relative overflow-hidden bg-primary-800 px-5 py-4 text-neutral-0">
-            <div className="absolute -right-5 -top-5 size-20 rounded-full bg-primary-700/60" aria-hidden="true" />
-            <div className="absolute -bottom-6 right-12 size-16 rounded-full bg-accent-600/30" aria-hidden="true" />
-            <div className="relative flex items-start justify-between gap-2">
-              <div>
-                <p className="text-xs font-medium text-primary-100">Hadiah Kontribusi</p>
-                <h2 className="mt-0.5 text-lg font-bold">Tukar Poin</h2>
-                <p className="text-xs text-primary-100/80">Tukarkan poin jadi hadiah nyata</p>
-                {user && <p className="mt-1.5 text-xs font-semibold text-neutral-0">{affordableCount} dari {rewards.length} hadiah siap ditukar</p>}
-              </div>
-              <div className="flex items-center gap-2">
-                {user && (
-                  <div className="rounded-xl border border-accent-500/40 bg-primary-700/70 px-3 py-1.5 text-center backdrop-blur-sm">
-                    <p className="text-lg font-bold text-accent-500">{pointsQuery.isLoading ? "…" : balance}</p>
-                    <p className="text-[10px] font-medium text-primary-100/80">poin kamu</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
+          <TukarPoinHeader
+            points={user ? { balance, loading: pointsQuery.isLoading, affordableCount, total: rewards.length, onMyGifts: openMyGifts } : undefined}
+          />
         </div>
         <div className="flex-1 overflow-y-auto bg-neutral-50 px-4 pt-4 pb-24">
           <RewardContent
@@ -151,9 +184,6 @@ export function TukarPoinPanel() {
           />
         </div>
       </div>
-
-      {/* Modal login untuk guest */}
-      <LoginModal open={loginOpen} onClose={() => setLoginOpen(false)} />
 
       {/* Modal klaim: bottom sheet di mobile, dialog tengah di desktop */}
       {claimReward && (
