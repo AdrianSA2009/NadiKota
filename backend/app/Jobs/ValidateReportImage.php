@@ -122,16 +122,31 @@ final class ValidateReportImage implements ShouldQueue
                 $this->markNeedsReview($report, 'Lokasi mencurigakan: ' . implode(', ', $anomalyReasons));
             }
 
-            // Lolos AI bukan berarti langsung antre — admin tetap wajib meninjau dulu.
-            if ($report->ticket && $decision === 'accepted' && ! $flagged) {
-                $ticket = $report->ticket;
-                if ($ticket->status === TicketStatus::REPORTED) {
-                    $ticket->update(['status' => TicketStatus::NEEDS_REVIEW]);
-                    $ticket->statusHistories()->create([
-                        'from_status' => TicketStatus::REPORTED->value,
-                        'to_status' => TicketStatus::NEEDS_REVIEW->value,
-                        'note' => 'Divalidasi AI — menunggu tinjauan admin',
-                    ]);
+            // Tiket baru ikut berstatus: hanya accepted (tunggu tinjauan admin) atau needs_review.
+            // Menolak laporan berarti menutup tiket — bukan antrean review.
+            if ($report->ticket) {
+                $target = match (true) {
+                    $decision === 'accepted' && ! $flagged => TicketStatus::NEEDS_REVIEW,
+                    in_array($decision, ['suspicious', 'rejected'], true) => TicketStatus::NEEDS_REVIEW,
+                    default => null,
+                };
+                $note = match (true) {
+                    $flagged => 'Lokasi mencurigakan: ' . implode(', ', $anomalyReasons),
+                    $decision === 'accepted' => 'Divalidasi AI — menunggu tinjauan admin',
+                    $decision === 'rejected' => 'Laporan ditolak AI — menunggu tinjauan admin',
+                    default => 'AI tidak yakin — menunggu tinjauan admin',
+                };
+
+                $moved = $this->syncTicketStatus($report, $target, $note);
+
+                // Kabar ke admin: tiket kini resmi menunggu penilaian.
+                if ($moved && $target === TicketStatus::NEEDS_REVIEW) {
+                    SendRoleNotification::dispatch(['admin', 'super_admin'], [
+                        'type' => 'ticket_assessment',
+                        'title' => 'Tiket membutuh penilaian',
+                        'body' => "Tiket {$report->ticket->ticket_number} menunggu tinjauan admin — periksa dan putuskan.",
+                        'data' => ['ticket_id' => $report->ticket->id, 'ticket_number' => $report->ticket->ticket_number],
+                    ])->onQueue('notifications');
                 }
             }
 
@@ -163,6 +178,26 @@ final class ValidateReportImage implements ShouldQueue
         }
     }
 
+    /**
+     * Selaraskan status tiket dengan hasil AI (hanya dari REPORTED → NEEDS_REVIEW) + catat history.
+     * Return true bila status benar-benar berubah.
+     */
+    private function syncTicketStatus(Report $report, ?TicketStatus $target, string $note): bool
+    {
+        if ($target === null || $report->ticket === null || $report->ticket->status !== TicketStatus::REPORTED) {
+            return false;
+        }
+
+        $report->ticket->update(['status' => $target]);
+        $report->ticket->statusHistories()->create([
+            'from_status' => TicketStatus::REPORTED->value,
+            'to_status' => $target->value,
+            'note' => $note,
+        ]);
+
+        return true;
+    }
+
     private function markNeedsReview(Report $report, string $note): void
     {
         $report->update(['status' => ReportStatus::NEEDS_REVIEW]);
@@ -174,6 +209,14 @@ final class ValidateReportImage implements ShouldQueue
                 'to_status' => TicketStatus::NEEDS_REVIEW->value,
                 'note' => $note,
             ]);
+
+            // Kabar ke admin: tiket ini harus ditinjau secara manual.
+            SendRoleNotification::dispatch(['admin', 'super_admin'], [
+                'type' => 'ticket_assessment',
+                'title' => 'Tiket membutuh penilaian',
+                'body' => "Tiket {$report->ticket->ticket_number} perlu ditinjau manual oleh admin.",
+                'data' => ['ticket_id' => $report->ticket->id, 'ticket_number' => $report->ticket->ticket_number],
+            ])->onQueue('notifications');
         }
     }
 

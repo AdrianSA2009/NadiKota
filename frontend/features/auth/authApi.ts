@@ -55,6 +55,17 @@ export async function checkUsernameAvailable(username: string): Promise<boolean>
   } catch { return true; }
 }
 
+export async function checkEmailAvailable(email: string): Promise<boolean> {
+  const normalized = email.trim().toLowerCase();
+  try {
+    const res = await apiClient.get<{ data: { available: boolean } }>("/auth/email-available", { params: { email: normalized } });
+    return res.data.data.available;
+  } catch {
+    // Server-side registration validation remains authoritative if the hint endpoint fails.
+    return true;
+  }
+}
+
 export async function updatePassword(currentPassword: string, password: string, passwordConfirmation: string): Promise<{ message: string }> {
   await ensureCsrfCookie();
   const res = await apiClient.put("/me/password", { current_password: currentPassword, password, password_confirmation: passwordConfirmation });

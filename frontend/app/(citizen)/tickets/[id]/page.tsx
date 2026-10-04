@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { CircleHelp, Construction, Lightbulb, MapPin, X } from "lucide-react";
+import { MapPin, X } from "lucide-react";
+import { categoryMeta } from "@/lib/categoryMeta";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -32,7 +33,8 @@ export default function TicketDetailPage() {
   const ticket = query.data;
   const before = ticket.photos.find((photo) => photo.type === "before" && photo.photoUrl);
   const after = ticket.photos.find((photo) => photo.type === "after" && photo.photoUrl);
-  const categoryLabel: Record<TicketDetail["category"], string> = { pothole: "Jalan berlubang", street_light: "PJU mati", other: "Lainnya" };
+  const category = categoryMeta(ticket.category);
+  const CategoryIcon = category.icon;
   // Tiket batal/ditolak/needs_review tak punya langkah sendiri di timeline → stage merah = stage terakhir yang terjadi.
   const terminal = ticket.status === "cancelled" || ticket.status === "rejected";
   // Waktu tiap langkah dari riwayat transisi status; fallback field tiket utk langkah awal & verifikasi.
@@ -49,10 +51,8 @@ export default function TicketDetailPage() {
       // Batal/ditolak/needs_review → stage terakhir yang punya waktu (titik berhentinya tiket).
       : ([...STEP_ORDER].reverse().find((s) => times[s]) ?? "reported");
 
-  const CATEGORY_ICON = { pothole: Construction, street_light: Lightbulb, other: CircleHelp } as const;
-  const CategoryIcon = CATEGORY_ICON[ticket.category];
-  const statusVariant = (s: TicketDetail["status"]): "done" | "urgent" | "reported" | "verified" | "queued" | "in_progress" | "cancelled" | "needs_review" =>
-    s === "completed" ? "done" : s === "rejected" ? "urgent" : s === "verified" ? "verified" : s;
+  const statusVariant = (s: TicketDetail["status"]): "done" | "rejected" | "reported" | "verified" | "queued" | "in_progress" | "cancelled" | "citizen_review" =>
+    s === "completed" ? "done" : s === "rejected" ? "rejected" : s === "needs_review" ? "citizen_review" : s === "verified" ? "verified" : s;
   const photoPill = "mt-2 inline-block rounded-full bg-neutral-100 px-2.5 py-0.5 text-xs font-medium text-neutral-600";
 
   return <main className="min-h-screen bg-neutral-50 px-4 pb-28 pt-6 text-neutral-700 md:pb-6">
@@ -62,7 +62,7 @@ export default function TicketDetailPage() {
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="text-xs font-semibold uppercase tracking-wider text-primary-100/90">Tiket {ticket.ticketNumber}</p>
-            <h1 className="mt-1.5 flex items-center gap-2.5 text-2xl font-bold"><CategoryIcon className="size-7 shrink-0" aria-hidden="true" />{categoryLabel[ticket.category]}</h1>
+            <h1 className="mt-1.5 flex items-center gap-2.5 text-2xl font-bold"><CategoryIcon className="size-7 shrink-0" aria-hidden="true" />{category.label}</h1>
             <p className="mt-2 flex items-center gap-1.5 text-sm text-primary-100/90"><MapPin className="size-4 shrink-0" aria-hidden="true" />{ticket.latitude.toFixed(6)}, {ticket.longitude.toFixed(6)}</p>
           </div>
           <Badge variant={statusVariant(ticket.status)} />

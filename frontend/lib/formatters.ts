@@ -5,7 +5,7 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function formatCategory(category: string): string {
-  return { pothole: "Jalan berlubang", street_light: "PJU mati", other: "Lainnya" }[category] ?? category;
+  return { pothole: "Jalan berlubang", street_light: "PJU mati", other: "Kerusakan lainnya" }[category] ?? category;
 }
 
 export function formatStatus(status: string): string {

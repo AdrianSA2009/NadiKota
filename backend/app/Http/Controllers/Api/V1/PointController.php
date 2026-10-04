@@ -81,6 +81,8 @@ final class PointController extends Controller
                 'balance' => $result['balance'],
                 'pointsCost' => $reward->points_cost,
                 'message' => 'Hadiah berhasil ditukar.',
+                // Id transaksi klaim — jadi kode QR di halaman Hadiah Saya.
+                'transactionId' => $result['transaction']->id,
             ],
         ]);
     }

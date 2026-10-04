@@ -23,6 +23,11 @@ final class StoreReportRequest extends FormRequest
 
         return [
             'category' => ['required', Rule::enum(ReportCategory::class)],
+            'other_description' => [
+                'nullable', 'string', 'max:500',
+                // Wajib diisi hanya bila kategori bukan pothole/street_light.
+                Rule::requiredIf(fn () => $this->input('category') === ReportCategory::OTHER->value),
+            ],
             'latitude' => ['required', 'numeric', "between:{$latMin},{$latMax}"],
             'longitude' => ['required', 'numeric', "between:{$lngMin},{$lngMax}"],
             'photo' => ['required', 'image', 'max:' . ($maxSize / 1024)],
@@ -34,6 +39,8 @@ final class StoreReportRequest extends FormRequest
         return [
             'category.required' => 'Kategori wajib diisi.',
             'category.in' => 'Kategori tidak valid.',
+            'other_description.required' => 'Jelaskan kerusakan yang Anda temukan.',
+            'other_description.max' => 'Penjelasan maksimal 500 karakter.',
             'latitude.required' => 'Lintang wajib diisi.',
             'latitude.between' => 'Lintang berada di luar area Batam.',
             'longitude.required' => 'Bujur wajib diisi.',

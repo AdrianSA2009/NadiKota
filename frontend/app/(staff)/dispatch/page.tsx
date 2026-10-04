@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { ChevronDown, CircleHelp, ClipboardCheck, Clock, Construction, Hourglass, Lightbulb, ListFilter, ListOrdered, Search, Truck, Users, Wrench } from "lucide-react";
+import { ChevronDown, CircleHelp, ClipboardCheck, Clock, Construction, Hourglass, Lightbulb, ListFilter, ListOrdered, Search, TriangleAlert, Truck, Users, Wrench } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -22,7 +22,7 @@ type AssignFilter = "all" | "unassigned" | "assigned";
 type DangerFilter = "all" | "bahaya" | "hati-hati";
 type SortMode = "newest" | "oldest";
 
-const CATEGORY_ICON = { pothole: Construction, street_light: Lightbulb, other: CircleHelp } as const;
+const CATEGORY_ICON = { pothole: Construction, street_light: Lightbulb, other: TriangleAlert } as const;
 
 export default function DispatchPage() {
   const router = useRouter();

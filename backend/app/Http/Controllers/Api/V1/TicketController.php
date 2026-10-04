@@ -13,6 +13,7 @@ use App\Models\Team;
 use App\Models\Ticket;
 use App\Services\ClusteringService;
 use App\Services\PriorityService;
+use App\Services\SlaCalculator;
 use App\Support\PhotoUrl;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -24,10 +25,15 @@ class TicketController extends Controller
     public function map(Request $request): JsonResponse
     {
         $tickets = Ticket::query()
+            // Koordinat diambil sekali lewat select (bukan query ST_X/ST_Y per tiket di resource).
+            ->addSelect('tickets.*')
+            ->addSelect(DB::raw('ST_Y(location) as lat, ST_X(location) as lng'))
             ->with(['reports.photos', 'reports.latestAiValidation'])
             ->withCount('reporters')
             ->whereNotNull('location')
-            ->whereNotIn('status', [TicketStatus::REJECTED, TicketStatus::CANCELLED])
+            // Tiket selesai / dibatalkan / ditolak tidak ditampilkan lagi di peta —
+            // peta hanya menampilkan masalah yang masih aktif.
+            ->whereNotIn('status', [TicketStatus::COMPLETED, TicketStatus::REJECTED, TicketStatus::CANCELLED])
             ->orderByDesc('priority_score')
             ->limit(min($request->integer('limit', 200), 500))
             ->get();
@@ -54,6 +60,33 @@ class TicketController extends Controller
         }
 
         $tickets = $query->withCount('reporters')->paginate($request->integer('per_page', 20));
+
+        return response()->json([
+            'data' => TicketResource::collection($tickets),
+            'meta' => [
+                'currentPage' => $tickets->currentPage(),
+                'lastPage' => $tickets->lastPage(),
+                'total' => $tickets->total(),
+            ],
+        ]);
+    }
+
+    /**
+     * Riwayat tiket yang dilaporkan user login — panel kontribusi warga.
+     */
+    public function myReports(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        $tickets = Ticket::query()
+            // lat/lng sekali lewat select — hindari query ST_X/ST_Y per tiket di resource.
+            ->addSelect('tickets.*')
+            ->addSelect(DB::raw('ST_Y(location) as lat, ST_X(location) as lng'))
+            ->with(['reports.photos', 'team:id,name'])
+            ->withCount('reporters')
+            ->whereHas('reports', fn ($q) => $q->where('user_id', $user->id))
+            ->orderByDesc('created_at')
+            ->paginate($request->integer('per_page', 50));
 
         return response()->json([
             'data' => TicketResource::collection($tickets),
@@ -178,6 +211,10 @@ class TicketController extends Controller
                 'review_status' => $validated['decision'],
                 'danger_level' => $validated['danger_level'] ?? $ticket->danger_level,
                 'verified_at' => $validated['decision'] === 'approved' ? now() : null,
+                // Batas waktu penyelesaian (SLA) dihitung dari saat tiket disetujui.
+                'sla_due_at' => $validated['decision'] === 'approved'
+                    ? now()->addDays(SlaCalculator::daysFor($ticket->category))
+                    : null,
             ]);
 
             $ticket->statusHistories()->create([
@@ -614,6 +651,7 @@ class TicketController extends Controller
                 'status' => TicketStatus::CANCELLED,
                 'cancelled_at' => now(),
                 'cancel_reason' => $validated['reason'],
+                'sla_due_at' => null, // tiket ditutup — tak perlu lagi dihitung SLA
             ]);
             $ticket->statusHistories()->create([
                 'from_status' => $before['status'],

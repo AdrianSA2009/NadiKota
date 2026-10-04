@@ -46,6 +46,12 @@ return [
     */
     'sla' => [
         'business_hours_per_day' => (int) env('SLA_BUSINESS_HOURS', 8),
+        // Batas hari kerja per kategori — diisi saat admin menyetujui tiket.
+        'days_by_category' => [
+            'pothole' => (int) env('SLA_DAYS_POTHOLE', 3),
+            'street_light' => (int) env('SLA_DAYS_STREET_LIGHT', 7),
+            'other' => (int) env('SLA_DAYS_OTHER', 7),
+        ],
         'escalation' => [
             'day_1_role' => env('SLA_ESCALATION_DAY1_ROLE', 'supervisor'),
             'day_3_role' => env('SLA_ESCALATION_DAY3_ROLE', 'admin'),

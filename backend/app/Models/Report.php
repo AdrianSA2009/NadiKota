@@ -15,7 +15,7 @@ final class Report extends Model
     use HasFactory;
 
     protected $fillable = [
-        'user_id', 'ticket_id', 'category', 'status',
+        'user_id', 'ticket_id', 'category', 'other_description', 'status',
         'latitude', 'longitude', 'idempotency_key', 'server_captured_at',
         'rejection_reason', 'rejection_suggestion',
     ];

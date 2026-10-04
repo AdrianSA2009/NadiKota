@@ -16,6 +16,7 @@ class ReportService
     public function __construct(
         private readonly ReportRepository $reports,
         private readonly ClusteringService $clustering,
+        private readonly PrivacyBlurService $privacyBlur,
     ) {}
 
     /**
@@ -50,6 +51,10 @@ class ReportService
         $objectKey = 'photos/' . now()->format('Y/m/d') . '/' . uniqid() . '.' . $photo->getClientOriginalExtension();
         $photo->storeAs('photos/' . now()->format('Y/m/d'), basename($objectKey));
 
+        // Penjaga terakhir privasi: sensor wajah + plat sebelum foto jadi lampiran tiket.
+        // Umumnya sudah tersensor saat screening; ini untuk laporan offline / jalur bypass.
+        $this->privacyBlur->redactStoredPhoto($objectKey);
+
         return DB::transaction(function () use ($user, $payload, $photo, $idempotencyKey, $objectKey, $dailyCount, $maxDaily, $ip) {
             // Cari tiket terdekat
             $nearbyTicketId = $this->reports->findNearbyActiveTicket(
@@ -66,6 +71,8 @@ class ReportService
 
             $report = $this->reports->create($user, [
                 'category' => $payload['category'],
+                // Keterangan kategori "other" (null untuk pothole / street_light).
+                'other_description' => $payload['other_description'] ?? null,
                 'status' => $status,
                 'latitude' => $payload['latitude'],
                 'longitude' => $payload['longitude'],

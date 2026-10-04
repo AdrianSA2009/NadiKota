@@ -16,7 +16,12 @@ final class TicketPolicy
 
     public function view(User $user, Ticket $ticket): bool
     {
-        return $user->role === UserRole::ADMIN || $user->role === UserRole::SUPER_ADMIN;
+        if ($user->role === UserRole::ADMIN || $user->role === UserRole::SUPER_ADMIN) {
+            return true;
+        }
+
+        // Pelapor boleh melihat tiket yang ia laporkan (panel kontribusi / halaman detail warga).
+        return $ticket->reports()->where('user_id', $user->id)->exists();
     }
 
     public function review(User $user, Ticket $ticket): bool

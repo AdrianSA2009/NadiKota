@@ -43,12 +43,19 @@ final class PhotoScreeningController extends Controller
 
     /**
      * Hasil screening (dipoll frontend sampai status bukan pending).
+     * Foto tersensor dikirim sebagai data URL base64 agar frontend bisa langsung
+     * menggantinya sebelum laporan dikirim.
      */
     public function result(string $checkId): JsonResponse
     {
         abort_unless(Str::isUuid($checkId), 404);
 
         $result = Cache::get(ScreenReportPhoto::cacheKey($checkId));
+
+        if (is_array($result) && is_string($result['redacted'] ?? null)) {
+            $result['redactedUrl'] = 'data:image/jpeg;base64,' . base64_encode($result['redacted']);
+            unset($result['redacted']);
+        }
 
         return response()->json(['data' => $result ?? ['status' => 'pending']]);
     }

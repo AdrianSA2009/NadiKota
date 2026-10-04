@@ -5,16 +5,17 @@ namespace App\Http\Controllers\Api\V1;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\EmailOtpService;
 use App\Services\OtpService;
 use App\Support\PhotoUrl;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Storage;
-use Laravel\Socialite\Facades\Socialite;
-use Symfony\Component\HttpFoundation\RedirectResponse;
 
 final class AuthController extends Controller
 {
@@ -49,20 +50,116 @@ final class AuthController extends Controller
         return response()->json(['data' => ['available' => ! $taken]]);
     }
 
-    public function register(Request $request): JsonResponse
+    public function emailAvailable(Request $request): JsonResponse
     {
+        $email = mb_strtolower(trim((string) $request->query('email', '')));
+        validator(['email' => $email], ['email' => 'required|email|max:255'])->validate();
+
+        $taken = User::whereRaw('LOWER(TRIM(email)) = ?', [$email])->exists();
+
+        return response()->json(['data' => ['available' => ! $taken]]);
+    }
+
+    /**
+     * POST /auth/register — langkah 1: validasi data + kirim OTP ke email.
+     * Akun belum dibuat — menunggu verifikasi (POST /auth/register/verify).
+     */
+    public function register(Request $request, EmailOtpService $otp): JsonResponse
+    {
+        // Email identitas unik case-insensitive; normalisasi sebelum validasi, rate-limit,
+        // penyimpanan pending OTP, dan pembuatan akun.
+        $request->merge(['email' => mb_strtolower(trim((string) $request->input('email')))]);
+
         $data = $request->validate([
             'username' => 'required|string|min:3|max:40|alpha_dash|unique:users,username',
             'name' => 'required|string|min:2|max:100',
+            'email' => 'required|email|max:255',
             'password' => 'required|string|min:8|confirmed',
         ]);
 
-        $user = User::create([
-            'username' => $data['username'],
-            'name' => $data['name'],
-            'password' => Hash::make($data['password']),
-            'role' => UserRole::CITIZEN,
+        if (User::whereRaw('LOWER(TRIM(email)) = ?', [$data['email']])->exists()) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'email' => ['Email sudah terdaftar, silakan login atau gunakan email lain.'],
+            ]);
+        }
+
+        $throttleKey = 'register:' . $data['email'];
+        if (RateLimiter::tooManyAttempts($throttleKey, 5)) {
+            return response()->json([
+                'error' => ['message' => 'Terlalu banyak permintaan OTP. Coba lagi beberapa menit lagi.'],
+            ], 429);
+        }
+        // Pending registrasi disimpan di Redis — password sudah di-hash sekali.
+        try {
+            $otp->send($data['email'], [
+                'username' => $data['username'],
+                'name' => $data['name'],
+                'email' => $data['email'],
+                'password' => Hash::make($data['password']),
+            ]);
+        } catch (\Symfony\Component\Mailer\Exception\TransportExceptionInterface $e) {
+            // SMTP unavailable/credentials rejected: fail clearly and let user retry.
+            Log::warning('Registration OTP email delivery failed.', [
+                'email_hash' => hash('sha256', $data['email']),
+                'exception' => $e::class,
+            ]);
+
+            return response()->json([
+                'error' => ['code' => 'OTP_EMAIL_UNAVAILABLE', 'message' => 'Email verifikasi belum dapat dikirim. Coba lagi nanti atau hubungi administrator.'],
+            ], 503);
+        }
+
+        RateLimiter::hit($throttleKey, 600);
+
+        return response()->json([
+            'message' => 'Kode verifikasi dikirim ke email Anda.',
+            'email' => $data['email'],
+        ], 202);
+    }
+
+    /**
+     * POST /auth/register/verify — langkah 2: cocokkan OTP, baru akun dibuat + sesi.
+     */
+    public function registerVerify(Request $request, EmailOtpService $otp): JsonResponse
+    {
+        $request->merge(['email' => mb_strtolower(trim((string) $request->input('email')))]);
+        $data = $request->validate([
+            'email' => 'required|email',
+            'otp' => 'required|string|size:' . config('nadi-kota.otp.length', 6),
         ]);
+
+        $pending = $otp->verify($data['email'], $data['otp']);
+        if ($pending === null) {
+            return response()->json([
+                'error' => ['message' => 'Kode OTP salah atau kedaluwarsa.'],
+            ], 422);
+        }
+
+        // Bisa saja sudah terpakai selama menunggu OTP.
+        if (User::where('username', $pending['username'])->exists() || User::whereRaw('LOWER(TRIM(email)) = ?', [mb_strtolower(trim((string) $pending['email']))])->exists()) {
+            return response()->json([
+                'error' => ['message' => 'Username sudah digunakan atau email sudah terdaftar, silakan login atau gunakan data lain.'],
+            ], 422);
+        }
+
+        try {
+            $user = User::create([
+                'username' => $pending['username'],
+                'name' => $pending['name'],
+                'email' => $pending['email'],
+                'password' => $pending['password'], // sudah di-hash saat langkah 1
+                'role' => UserRole::CITIZEN,
+            ]);
+        } catch (QueryException $e) {
+            // DB index tetap jadi pengaman race bila dua pendaftaran bersamaan.
+            if (str_contains($e->getMessage(), 'users_email_lower_unique')) {
+                return response()->json([
+                    'error' => ['message' => 'Email sudah terdaftar, silakan login atau gunakan email lain.'],
+                ], 422);
+            }
+
+            throw $e;
+        }
 
         Auth::login($user);
 
@@ -99,10 +196,18 @@ final class AuthController extends Controller
     public function updateProfile(Request $request): JsonResponse
     {
         $user = $request->user();
+        $request->merge(['email' => mb_strtolower(trim((string) $request->input('email')))]);
         $data = $request->validate([
             'username' => 'required|string|min:3|max:40|alpha_dash|unique:users,username,' . $user->id,
             'name' => 'required|string|min:2|max:100',
+            'email' => ['required', 'email', 'max:255'],
         ]);
+
+        if (User::whereRaw('LOWER(TRIM(email)) = ?', [$data['email']])->whereKeyNot($user->id)->exists()) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'email' => ['Email sudah terdaftar, silakan gunakan email lain.'],
+            ]);
+        }
 
         $user->update($data);
 
@@ -143,94 +248,6 @@ final class AuthController extends Controller
         ]);
 
         return response()->json(['data' => ['user' => $this->userData($user)]]);
-    }
-
-    /**
-     * Redirect ke Google OAuth.
-     */
-    public function googleRedirect(): RedirectResponse
-    {
-        return Socialite::driver('google')
-            ->scopes([
-                'openid',
-                'https://www.googleapis.com/auth/userinfo.email',
-                'https://www.googleapis.com/auth/userinfo.profile',
-            ])
-            ->redirect();
-    }
-
-    /**
-     * Handle callback dari Google OAuth.
-     */
-    public function googleCallback(Request $request): RedirectResponse
-    {
-        $googleUser = Socialite::driver('google')
-            ->stateless()
-            ->user();
-
-        $user = User::updateOrCreate(
-            [
-                'oauth_provider' => 'google',
-                'oauth_subject' => $googleUser->getId(),
-            ],
-            [
-                'name' => $googleUser->getName(),
-                'email' => $googleUser->getEmail(),
-                'role' => UserRole::CITIZEN,
-            ],
-        );
-
-        Auth::login($user);
-
-        return redirect(config('app.frontend_url', 'http://localhost:3000') . '/peta');
-    }
-
-    /**
-     * Login via id_token Google (untuk PWA/mobile).
-     */
-    public function googleLogin(Request $request): JsonResponse
-    {
-        $request->validate([
-            'id_token' => 'required|string',
-        ]);
-
-        try {
-            $googleUser = Socialite::driver('google')
-                ->stateless()
-                ->userFromToken($request->input('id_token'));
-        } catch (\Exception $e) {
-            return response()->json([
-                'error' => ['message' => 'Token Google tidak valid.'],
-            ], 422);
-        }
-
-        $user = User::updateOrCreate(
-            [
-                'oauth_provider' => 'google',
-                'oauth_subject' => $googleUser->getId(),
-            ],
-            [
-                'name' => $googleUser->getName(),
-                'email' => $googleUser->getEmail(),
-                'role' => UserRole::CITIZEN,
-            ],
-        );
-
-        Auth::login($user);
-
-        $token = $user->createToken('app')->plainTextToken;
-
-        return response()->json([
-            'data' => [
-                'token' => $token,
-                'user' => [
-                    'id' => $user->id,
-                    'name' => $user->name,
-                    'email' => $user->email,
-                    'role' => $user->role->value,
-                ],
-            ],
-        ]);
     }
 
     /**

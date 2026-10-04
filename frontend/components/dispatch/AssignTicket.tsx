@@ -96,7 +96,7 @@ export function TicketSummary({ ticket, photo = true, compact = false }: { ticke
           <p className="text-xs text-neutral-500">{ticket.ticketNumber}</p>
           <h3 className="truncate font-semibold text-neutral-900">{formatCategory(ticket.category)}</h3>
         </div>
-        <Badge variant={ticket.status === "in_progress" && ticket.reviewStatus === "submitted" ? "assessing" : ticket.status === "completed" ? "done" : ticket.status === "cancelled" ? "cancelled" : ticket.status === "rejected" ? "urgent" : ticket.status} />
+        <Badge variant={ticket.status === "in_progress" && ticket.reviewStatus === "submitted" ? "assessing" : ticket.status === "completed" ? "done" : ticket.status === "cancelled" ? "cancelled" : ticket.status === "rejected" ? "rejected" : ticket.status} />
       </div>
       <dl className={`mt-3 space-y-1.5 text-sm ${compact ? "" : ""}`}>
         <div className="flex gap-2">

@@ -30,9 +30,9 @@ const FILTERS: { value: "" | TicketStatus; label: string }[] = [
 
 type BadgeVariant = ComponentProps<typeof Badge>["variant"];
 const badgeVariant = (status: TicketStatus): BadgeVariant =>
-  status === "completed" ? "done" : status === "rejected" ? "urgent" : status === "cancelled" ? "cancelled" : status;
+  status === "completed" ? "done" : status === "rejected" ? "rejected" : status === "cancelled" ? "cancelled" : status;
 
-const CATEGORY_ICON = { pothole: Construction, street_light: Lightbulb, other: CircleHelp } as const;
+const CATEGORY_ICON = { pothole: Construction, street_light: Lightbulb, other: TriangleAlert } as const;
 
 const DANGER_CHIP: Record<DangerLevel, string> = {
   bahaya: "border-danger-600 bg-danger-50 text-danger-700",

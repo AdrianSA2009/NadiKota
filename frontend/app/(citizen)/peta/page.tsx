@@ -28,7 +28,7 @@ function AdminQuickMenu({ open, onClose }: { open: boolean; onClose: () => void 
   const closeKontribusi = useKontribusiPanel((s) => s.closePanel);
   const closeTukar = useTukarPoinPanel((s) => s.closePanel);
 
-  const isStaff = Boolean(user && (ADMIN as readonly string[]).includes(user.role));
+const isStaff = Boolean(user && (ADMIN as readonly string[]).includes(user.role));
   if (!initialized || !user || !isStaff || !open) return null;
 
   const items = [
@@ -218,8 +218,9 @@ export default function PetaPage() {
 
   const tickets = data?.data ?? [];
   // true = server mungkin masih punya tiket lain di luar batas.
-  const isStaff = Boolean(user && (ADMIN as readonly string[]).includes(user.role));
-
+  const isStaff = Boolean(user && (ADMIN as readonly string[]).includes(user.role));  // Kontrol overlay (tombol Lapor dll) menunggu peta & cek auth selesai — konsisten dgn skeleton sidebar.
+  const initialized = useAuthStore((s) => s.initialized);
+  const overlayReady = initialized;
   return (
     <div className="absolute inset-0">
       <LocationMap
@@ -259,7 +260,7 @@ export default function PetaPage() {
       {/* Lapor kerusakan — di bawah search bar sisi KIRI: kanan atas dipakai avatar + dropdown profil,
           kiri bawah ada kontrol zoom/locate & bottom nav — kolom kiri-atas bebas (satu tombol utk mobile & desktop).
           Disembunyikan utk admin & tim lapangan (mereka tak melapor). */}
-      {!(user && (STAFF as readonly string[]).includes(user.role)) && (
+      {overlayReady && !(user && (STAFF as readonly string[]).includes(user.role)) && (
         <button
           type="button"
           onClick={() => (user ? router.push("/report") : openLogin())}

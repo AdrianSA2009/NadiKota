@@ -10,22 +10,17 @@ use App\Http\Controllers\Api\V1\ReportController;
 use App\Http\Controllers\Api\V1\Admin\RewardController as AdminRewardController;
 use App\Http\Controllers\Api\V1\TeamController;
 use App\Http\Controllers\Api\V1\TicketController;
-use Illuminate\Cookie\Middleware\EncryptCookies;
-use Illuminate\Session\Middleware\StartSession;
 use Illuminate\Support\Facades\Route;
-use Illuminate\View\Middleware\ShareErrorsFromSession;
 
 Route::prefix('v1')->group(function (): void {
     // Auth routes
-    Route::post('/auth/google', [AuthController::class, 'googleLogin']);
     Route::post('/auth/login', [AuthController::class, 'passwordLogin']);
     Route::post('/auth/register', [AuthController::class, 'register']);
-    Route::get('/auth/google/redirect', [AuthController::class, 'googleRedirect']);
-    Route::get('/auth/google/callback', [AuthController::class, 'googleCallback'])
-        ->middleware([EncryptCookies::class, StartSession::class, ShareErrorsFromSession::class]);
+    Route::post('/auth/register/verify', [AuthController::class, 'registerVerify']);
     Route::post('/auth/otp/request', [AuthController::class, 'otpRequest']);
     Route::post('/auth/otp/verify', [AuthController::class, 'otpVerify']);
     Route::get('/auth/username-available', [AuthController::class, 'usernameAvailable']);
+    Route::get('/auth/email-available', [AuthController::class, 'emailAvailable']);
     Route::get('/auth/session', [AuthController::class, 'session']);
     Route::post('/auth/logout', [AuthController::class, 'logout'])
         ->middleware('auth:sanctum');
@@ -87,6 +82,8 @@ Route::prefix('v1')->group(function (): void {
             ->middleware('role:field_team');
 
         // Ticket routes
+        // Riwayat laporan milik user login (semua role) — panel kontribusi warga.
+        Route::get('/me/reports', [TicketController::class, 'myReports']);
         Route::get('/tickets', [TicketController::class, 'index'])
             ->middleware('role:admin,super_admin');
         Route::get('/tickets/{ticket}', [TicketController::class, 'show']);

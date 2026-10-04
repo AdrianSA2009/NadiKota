@@ -6,6 +6,7 @@ namespace App\Jobs;
 
 use App\Models\Photo;
 use App\Services\Contracts\AiImageValidator;
+use App\Services\PrivacyBlurService;
 use App\Services\RecapturedPhotoDetector;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -47,6 +48,7 @@ final class ScreenReportPhoto implements ShouldQueue
     public function handle(
         AiImageValidator $validator,
         RecapturedPhotoDetector $detector,
+        PrivacyBlurService $blur,
     ): void {
         try {
             $photo = new Photo([
@@ -74,7 +76,22 @@ final class ScreenReportPhoto implements ShouldQueue
                 return;
             }
 
-            $validation = $validator->validate($photo, $captureCheck['signals']);
+            // Sensor privasi (wajah + plat) di Screening; hasil tersensor dipakai frontend.
+            $blurred = $blur->blur($contents, $this->mimeType);
+            $counts = $blurred[1] ?? ['faces' => 0, 'plates' => 0];
+
+            // Analisis AI memakai foto yang sudah disensor (eksif tetap di file asli).
+            if ($blurred !== null && ($counts['faces'] > 0 || $counts['plates'] > 0)) {
+                $scratch = 'photos/blur-scratch/' . $this->checkId . '.jpg';
+                Storage::disk(config('filesystems.default'))->put($scratch, $blurred[0]);
+                try {
+                    $validation = $validator->validate(new Photo(['object_key' => $scratch, 'mime_type' => 'image/jpeg']), $captureCheck['signals']);
+                } finally {
+                    Storage::disk(config('filesystems.default'))->delete($scratch);
+                }
+            } else {
+                $validation = $validator->validate($photo, $captureCheck['signals']);
+            }
             $result = $validation['result'];
             $feasibility = $result['feasibility'] ?? 'uncertain';
             $sourceRephoto = ($result['source'] ?? 'direct') !== 'direct';
@@ -91,6 +108,9 @@ final class ScreenReportPhoto implements ShouldQueue
                 'detection' => $isRephoto ? 'ai_rephoto' : 'direct',
                 'has_camera_exif' => $captureCheck['has_camera_exif'],
                 'signals' => $captureCheck['signals'],
+                'redacted' => $blurred !== null ? $blurred[0] : null,
+                'redacted_faces' => $counts['faces'],
+                'redacted_plates' => $counts['plates'],
                 'reason' => $isRephoto
                     ? 'Foto terdeteksi bukan pengambilan langsung (dari layar, screenshot, atau gambar internet). Ambil foto langsung dengan kamera di lokasi.'
                     : ($sourceRephoto

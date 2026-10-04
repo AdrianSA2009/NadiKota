@@ -17,7 +17,11 @@ final class TicketResource extends BaseResource
         $latitude = null;
         $longitude = null;
 
-        if ($this->location !== null) {
+        // Diprioritaskan: lat/lng hasil select (endpoint peta) — tanpa query tambahan.
+        if (isset($this->attributes['lat'], $this->attributes['lng'])) {
+            $latitude = (float) $this->attributes['lat'];
+            $longitude = (float) $this->attributes['lng'];
+        } elseif ($this->location !== null) {
             $coords = \DB::select('SELECT ST_X(location) AS lng, ST_Y(location) AS lat FROM tickets WHERE id = ?', [$this->id]);
             if ($coords !== []) {
                 $latitude = (float) $coords[0]->lat;

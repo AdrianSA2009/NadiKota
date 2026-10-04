@@ -10,7 +10,7 @@ import Image from "next/image";
 import { ArrowLeft, Gift, LockKeyhole, MailCheck, MapPin, Radar, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { ErrorState } from "@/components/ui/ErrorState";
-import { loginWithPassword, registerUser, verifyRegisterOtp, checkUsernameAvailable } from "@/features/auth/authApi";
+import { loginWithPassword, registerUser, verifyRegisterOtp, checkUsernameAvailable, checkEmailAvailable } from "@/features/auth/authApi";
 import { useAuthStore } from "@/features/auth/authStore";
 
 const loginSchema = z.object({
@@ -20,7 +20,7 @@ const loginSchema = z.object({
 const registerSchema = z.object({
   username: z.string().min(1, "Username belum diisi").min(3, "Username minimal 3 karakter").max(40, "Username maksimal 40 karakter").regex(/^[a-zA-Z0-9_-]+$/, "Hanya huruf, angka, dan tanda hubung."),
   name: z.string().min(1, "Nama belum diisi").min(2, "Nama minimal 2 karakter"),
-  email: z.string().min(1, "Email belum diisi").email("Format email tidak valid"),
+  email: z.string().trim().toLowerCase().min(1, "Email belum diisi").email("Format email tidak valid"),
   password: z.string().min(1, "Password belum diisi").min(8, "Password minimal 8 karakter"),
   confirmPassword: z.string().min(1, "Konfirmasi password belum diisi"),
 }).refine((v) => v.password === v.confirmPassword, { path: ["confirmPassword"], message: "Password tidak sama." });
@@ -36,9 +36,19 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
   const [otp, setOtp] = useState("");
   const [error, setError] = useState<string | null>(null);
   const setAuth = useAuthStore((s) => s.setAuth);
-  const loginForm = useForm<LoginValues>({ resolver: zodResolver(loginSchema), mode: "onChange" });
-  const registerForm = useForm<RegisterValues>({ resolver: zodResolver(registerSchema), mode: "onChange" });
+  const loginForm = useForm<LoginValues>({
+    resolver: zodResolver(loginSchema),
+    mode: "onChange",
+    defaultValues: { username: "", password: "" },
+  });
+  const registerForm = useForm<RegisterValues>({
+    resolver: zodResolver(registerSchema),
+    mode: "onChange",
+    defaultValues: { username: "", name: "", email: "", password: "", confirmPassword: "" },
+  });
   const watchedRegUsername = registerForm.watch("username");
+  const watchedRegEmail = registerForm.watch("email");
+  const [emailChecking, setEmailChecking] = useState(false);
   useEffect(() => {
     const trimmed = watchedRegUsername?.trim() ?? "";
     if (!/^[a-zA-Z0-9_-]{3,40}$/.test(trimmed)) {
@@ -54,6 +64,29 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [watchedRegUsername]);
+  useEffect(() => {
+    const email = (watchedRegEmail ?? "").trim().toLowerCase();
+    if (!z.string().email().safeParse(email).success) {
+      if (registerForm.formState.errors.email?.type === "taken") registerForm.clearErrors("email");
+      setEmailChecking(false);
+      return;
+    }
+    let current = true;
+    setEmailChecking(true);
+    const timer = setTimeout(() => {
+      void checkEmailAvailable(email).then((available) => {
+        if (!current) return;
+        if (available) {
+          if (registerForm.formState.errors.email?.type === "taken") registerForm.clearErrors("email");
+        } else {
+          registerForm.setError("email", { type: "taken", message: "Email sudah terdaftar, silakan login atau gunakan email lain." });
+        }
+        setEmailChecking(false);
+      });
+    }, 450);
+    return () => { current = false; clearTimeout(timer); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [watchedRegEmail]);
   const submittingRef = useRef(false);
   const router = useRouter();
   if (!open) return null;
@@ -101,7 +134,7 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
       {/* Hero kiri — desktop saja */}
       <aside className="hidden bg-gradient-to-br from-primary-900 via-primary-800 to-accent-700 p-10 text-neutral-0 md:flex md:w-[46%] md:max-w-2xl md:flex-col md:justify-between lg:p-14">
         <div className="flex items-center gap-2.5">
-          <Image src="/logo-mark.svg" alt="Logo NadiKota" width={36} height={36} unoptimized className="size-9 rounded-xl shadow-md" priority />
+          <Image src="/logo-mark.svg" alt="Logo NadiKota" width={36} height={36} unoptimized className="size-9 rounded-xl shadow-md" />
           <span className="text-lg font-bold">NadiKota</span>
         </div>
         <div>
@@ -155,7 +188,7 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
           {registerMode ? (
             otpEmail ? (
               /* Langkah 2 — masukkan kode OTP dari email */
-              <form onSubmit={(e) => { e.preventDefault(); void submitOtp(); }} className="space-y-3 md:space-y-4" noValidate>
+              <form key="otp" onSubmit={(e) => { e.preventDefault(); void submitOtp(); }} className="space-y-3 md:space-y-4" noValidate>
                 <div className="space-y-2">
                   <label htmlFor="otp-code" className="text-sm font-medium text-neutral-900">Kode verifikasi</label>
                   <input
@@ -174,7 +207,7 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
                 </Button>
               </form>
             ) : (
-            <form onSubmit={registerForm.handleSubmit(submitRegister)} className="space-y-3 md:space-y-4" noValidate>
+            <form key="register" onSubmit={registerForm.handleSubmit(submitRegister)} className="space-y-3 md:space-y-4" noValidate>
               <div className="space-y-2">
                 <label htmlFor="reg-username" className="text-sm font-medium text-neutral-900">Username</label>
                 <input id="reg-username" placeholder="Masukkan username" className={fieldInput(!!registerForm.formState.errors.username)} aria-invalid={!!registerForm.formState.errors.username} {...registerForm.register("username")} />
@@ -189,6 +222,7 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
                 <label htmlFor="reg-email" className="text-sm font-medium text-neutral-900">Email</label>
                 <input id="reg-email" type="email" placeholder="nama@email.com" autoComplete="email" className={fieldInput(!!registerForm.formState.errors.email)} aria-invalid={!!registerForm.formState.errors.email} {...registerForm.register("email")} />
                 {showFieldError(registerForm.formState.errors.email?.message)}
+                {emailChecking && <p className="text-xs text-neutral-500">Memeriksa email…</p>}
               </div>
               <div className="space-y-2">
                 <label htmlFor="reg-password" className="text-sm font-medium text-neutral-900">Password</label>
@@ -200,11 +234,11 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
                 <input id="reg-confirm" type="password" placeholder="Ulangi password" className={fieldInput(!!registerForm.formState.errors.confirmPassword)} aria-invalid={!!registerForm.formState.errors.confirmPassword} {...registerForm.register("confirmPassword")} />
                 {showFieldError(registerForm.formState.errors.confirmPassword?.message)}
               </div>
-              <Button type="submit" className="w-full" disabled={registerForm.formState.isSubmitting}>{registerForm.formState.isSubmitting ? "Memproses..." : "Daftar"}</Button>
+              <Button type="submit" className="w-full" disabled={registerForm.formState.isSubmitting || emailChecking || registerForm.formState.errors.email?.type === "taken"}>{registerForm.formState.isSubmitting ? "Memproses..." : "Daftar"}</Button>
             </form>
             )
           ) : (
-            <form onSubmit={loginForm.handleSubmit(submitLogin)} className="space-y-3 md:space-y-4" noValidate>
+            <form key="login" onSubmit={loginForm.handleSubmit(submitLogin)} className="space-y-3 md:space-y-4" noValidate>
               <div className="space-y-2">
                 <label htmlFor="login-username" className="text-sm font-medium text-neutral-900">Username</label>
                 <input id="login-username" placeholder="Masukkan username" autoComplete="username" className={fieldInput(!!loginForm.formState.errors.username)} aria-invalid={!!loginForm.formState.errors.username} {...loginForm.register("username")} />

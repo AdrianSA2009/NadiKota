@@ -24,7 +24,7 @@ const ALLOWED = ["admin", "super_admin", "field_team"] as const;
 
 type BadgeVariant = ComponentProps<typeof Badge>["variant"];
 const badgeVariant = (status: TicketStatus): BadgeVariant =>
-  status === "completed" ? "done" : status === "rejected" ? "urgent" : status === "cancelled" ? "cancelled" : status;
+  status === "completed" ? "done" : status === "rejected" ? "rejected" : status === "cancelled" ? "cancelled" : status;
 
 export default function TeamDetailPage() {
   return (

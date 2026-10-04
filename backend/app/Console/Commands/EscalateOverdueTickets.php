@@ -21,7 +21,11 @@ class EscalateOverdueTickets extends Command
     {
         $this->info('Checking for overdue tickets...');
 
-        $overdueTickets = Ticket::whereNotIn('status', [TicketStatus::COMPLETED, TicketStatus::REJECTED])
+        $overdueTickets = Ticket::whereNotIn('status', [
+            TicketStatus::COMPLETED,
+            TicketStatus::REJECTED,
+            TicketStatus::CANCELLED,
+        ])
             ->where('sla_due_at', '<=', now())
             ->where('sla_due_at', '!=', null)
             ->get();

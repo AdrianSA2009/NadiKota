@@ -14,6 +14,8 @@ export interface OfflineReport {
   id: string;
   idempotencyKey: string;
   category: "pothole" | "street_light" | "other";
+  /** Keterangan singkat — wajib bila kategori "other". */
+  otherDescription?: string | null;
   latitude: number;
   longitude: number;
   photo: Blob;
