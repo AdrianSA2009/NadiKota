@@ -29,10 +29,6 @@ reported → needs_review → queued → in_progress → completed
 - Dispatch hanya menyetor tim (status tetap `queued` + `assigned_team_id`) — tim menekan **Mulai** untuk `in_progress`.
 - PJ terkunci selama ada tiket `in_progress`; nama PJ pelaksana di-snapshot ke tiket (`tickets.assignee_name`).
 
-## Menjalankan
-
-> **Catatan monorepo:** root repo bukan package npm — `npm install`/`composer install` dijalankan di dalam subfolder (`frontend/`, `backend/`). Instalasi di root hanya menghasilkan `package.json` sampah.
-
 ### 1. Infrastruktur (Docker)
 
 ```bash

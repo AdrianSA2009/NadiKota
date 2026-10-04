@@ -1,0 +1,86 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="800" viewBox="0 0 1440 800" role="img" aria-labelledby="title desc">
+  <title id="title">Swimlane alur end-to-end laporan NadiKota</title>
+  <desc id="desc">Empat swimlane untuk warga, sistem NadiKota, admin, dan tim lapangan. Alur meliputi login, screening, submit, validasi dan clustering, tinjauan admin, dispatch, bukti perbaikan, finalisasi atau penolakan bukti, notifikasi dan konfirmasi warga.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#f6f9fc"/><stop offset="1" stop-color="#e9f0f7"/></linearGradient>
+    <linearGradient id="navy" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#12345b"/><stop offset="1" stop-color="#1d4f7a"/></linearGradient>
+    <linearGradient id="teal" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#087f70"/><stop offset="1" stop-color="#0f9f8c"/></linearGradient>
+    <linearGradient id="amber" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#b45309"/><stop offset="1" stop-color="#d97706"/></linearGradient>
+    <filter id="shadow" x="-15%" y="-20%" width="130%" height="150%"><feDropShadow dx="0" dy="5" stdDeviation="5" flood-color="#0b1f3a" flood-opacity=".12"/></filter>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 10 5 0 10Z" fill="#294967"/></marker>
+    <marker id="redArrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 10 5 0 10Z" fill="#c93838"/></marker>
+    <style>
+      text{font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
+      .title{font-size:29px;font-weight:800;fill:#102b49;letter-spacing:-.3px}.sub{font-size:14px;font-weight:500;fill:#60748a}
+      .lane{font-size:15px;font-weight:800;fill:#fff}.cardHead{font-size:13px;font-weight:800;fill:#fff}.cardBody{font-size:11.5px;font-weight:500;fill:#fff;opacity:.96}
+      .line{fill:none;stroke:#294967;stroke-width:2.6;marker-end:url(#arrow);stroke-linejoin:round;stroke-linecap:round}.error{fill:none;stroke:#c93838;stroke-width:2.1;stroke-dasharray:6 5;marker-end:url(#redArrow)}
+      .label{font-size:11px;font-weight:700;fill:#a92d2d}.foot{font-size:11.5px;font-weight:500;fill:#526a81}
+    </style>
+  </defs>
+  <rect width="1440" height="800" rx="24" fill="url(#bg)"/>
+  <text x="50" y="52" class="title">Alur End-to-End Penanganan Laporan</text>
+  <text x="50" y="78" class="sub">Swimlane per aktor · AI membantu pemeriksaan, keputusan review dan penyelesaian tiket dilakukan petugas</text>
+
+  <!-- lanes -->
+  <g>
+    <rect x="40" y="112" width="1360" height="144" rx="14" fill="#edf2f8" stroke="#c6d3e1" stroke-width="1.5"/>
+    <rect x="40" y="266" width="1360" height="166" rx="14" fill="#fff" stroke="#c6d3e1" stroke-width="1.5"/>
+    <rect x="40" y="442" width="1360" height="158" rx="14" fill="#edf2f8" stroke="#c6d3e1" stroke-width="1.5"/>
+    <rect x="40" y="610" width="1360" height="144" rx="14" fill="#fff" stroke="#c6d3e1" stroke-width="1.5"/>
+    <rect x="40" y="112" width="150" height="144" rx="14" fill="url(#navy)"/><rect x="176" y="112" width="14" height="144" fill="url(#navy)"/>
+    <rect x="40" y="266" width="150" height="166" rx="14" fill="url(#navy)"/><rect x="176" y="266" width="14" height="166" fill="url(#navy)"/>
+    <rect x="40" y="442" width="150" height="158" rx="14" fill="url(#navy)"/><rect x="176" y="442" width="14" height="158" fill="url(#navy)"/>
+    <rect x="40" y="610" width="150" height="144" rx="14" fill="url(#navy)"/><rect x="176" y="610" width="14" height="144" fill="url(#navy)"/>
+    <text x="115" y="187" text-anchor="middle" class="lane">WARGA</text>
+    <text x="115" y="337" text-anchor="middle" class="lane"><tspan x="115">NADIKOTA</tspan><tspan x="115" dy="19">(SISTEM)</tspan></text>
+    <text x="115" y="519" text-anchor="middle" class="lane"><tspan x="115">ADMIN /</tspan><tspan x="115" dy="19">PETUGAS</tspan></text>
+    <text x="115" y="681" text-anchor="middle" class="lane"><tspan x="115">TIM</tspan><tspan x="115" dy="19">LAPANGAN</tspan></text>
+  </g>
+
+  <!-- connector paths behind cards -->
+  <g>
+    <path d="M316 189H342V317" class="line"/>
+    <path d="M506 317H526" class="line"/>
+    <path d="M700 317H721V493" class="line"/>
+    <path d="M896 493H917V674" class="line"/>
+    <path d="M1092 674H1114V493" class="line"/>
+    <path d="M1288 493H1307V188" class="line"/>
+    <path d="M414 295V226" class="error"/>
+  </g>
+  <text x="426" y="244" class="label">Ditolak / perlu foto ulang → alasan ditampilkan ke warga</text>
+
+  <!-- activity cards -->
+  <g filter="url(#shadow)">
+    <rect x="208" y="142" width="108" height="94" rx="13" fill="#587caf"/>
+    <text x="262" y="170" text-anchor="middle" class="cardHead"><tspan x="262">1 · BUAT</tspan></text>
+    <text x="262" y="191" text-anchor="middle" class="cardBody"><tspan x="262">Login, foto</tspan><tspan x="262" dy="15">dan pilih lokasi</tspan><tspan x="262" dy="15">+ kategori</tspan></text>
+
+    <rect x="342" y="282" width="164" height="104" rx="14" fill="url(#teal)"/>
+    <text x="424" y="309" text-anchor="middle" class="cardHead">2 · SCREENING</text>
+    <text x="424" y="331" text-anchor="middle" class="cardBody"><tspan x="424">Pemeriksaan foto awal</tspan><tspan x="424" dy="16">detektor + AI bila aktif</tspan><tspan x="424" dy="16">bukan persetujuan tiket</tspan></text>
+
+    <rect x="526" y="282" width="174" height="104" rx="14" fill="url(#navy)"/>
+    <text x="613" y="309" text-anchor="middle" class="cardHead">3 · KIRIM &amp; PROSES</text>
+    <text x="613" y="331" text-anchor="middle" class="cardBody"><tspan x="613">Validasi request, simpan</tspan><tspan x="613" dy="16">laporan/foto; worker AI</tspan><tspan x="613" dy="16">dan clustering PostGIS</tspan></text>
+
+    <rect x="721" y="458" width="175" height="104" rx="14" fill="url(#amber)"/>
+    <text x="808.5" y="485" text-anchor="middle" class="cardHead">4 · REVIEW &amp; DISPATCH</text>
+    <text x="808.5" y="507" text-anchor="middle" class="cardBody"><tspan x="808.5">Petugas tinjau tiket;</tspan><tspan x="808.5" dy="16">setujui → queued + SLA</tspan><tspan x="808.5" dy="16">lalu tugaskan tim</tspan></text>
+
+    <rect x="917" y="630" width="175" height="92" rx="14" fill="url(#amber)"/>
+    <text x="1004.5" y="657" text-anchor="middle" class="cardHead">5 · KERJAKAN</text>
+    <text x="1004.5" y="679" text-anchor="middle" class="cardBody"><tspan x="1004.5">Tim mulai tugas;</tspan><tspan x="1004.5" dy="16">unggah bukti foto</tspan></text>
+
+    <rect x="1114" y="458" width="174" height="104" rx="14" fill="url(#navy)"/>
+    <text x="1201" y="485" text-anchor="middle" class="cardHead">6 · VERIFIKASI</text>
+    <text x="1201" y="507" text-anchor="middle" class="cardBody"><tspan x="1201">Admin finalisasi →</tspan><tspan x="1201" dy="16">completed; bukti ditolak</tspan><tspan x="1201" dy="16">→ tindak lanjut tim</tspan></text>
+
+    <rect x="1307" y="142" width="80" height="94" rx="13" fill="#587caf"/>
+    <text x="1347" y="169" text-anchor="middle" class="cardHead"><tspan x="1347">7 ·</tspan><tspan x="1347" dy="16">PANTAU</tspan></text>
+    <text x="1347" y="207" text-anchor="middle" class="cardBody"><tspan x="1347">Status,</tspan><tspan x="1347" dy="14">bukti,</tspan><tspan x="1347" dy="14">konfirmasi</tspan></text>
+  </g>
+
+  <!-- submit actor transition + note -->
+  <path d="M316 190H328V334H342" class="line"/>
+  <text x="214" y="775" class="foot">Laporan dibuat dengan respons 202; queue worker dan scheduler harus aktif. Jalur penolakan/hasil tidak pasti mengikuti status dan feedback API.</text>
+</svg>

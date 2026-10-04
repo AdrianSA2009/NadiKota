@@ -26,41 +26,39 @@ export function StatusTimeline({ current, times, danger = false }: StatusTimelin
   const statuses = Object.keys(STATUS) as TimelineStatus[];
   const currentIndex = statuses.indexOf(current);
   return (
-    <ol className="space-y-3">
+    <ol className="space-y-0">
       {statuses.map((status, idx) => {
         const Icon = STATUS[status].icon;
         const time = times?.[status] ? formatStepTime(times[status] as string) : null;
         const reached = idx <= currentIndex;
-        const active = idx === currentIndex;
         const done = status === "completed" && reached;
-        // Stage berlangsung: bubble solid navy — hijau utk "Selesai", merah kalau batal/ditolak.
+        const active = idx === currentIndex && !done;
+        const passed = reached && !active && !done;
         const bubble = active
-          ? danger ? "bg-danger-600" : done ? "bg-success-600" : "bg-primary-800"
-          : done ? "bg-success-50"
-          : reached ? "bg-primary-50" : "bg-neutral-100";
-        const iconColor = active ? "text-neutral-0" : done ? "text-success-700" : reached ? "text-primary-800" : "text-neutral-400";
+          ? danger ? "bg-danger-600" : "bg-warning-600"
+          : done ? "bg-success-700"
+          : passed ? "bg-success-50"
+          : "bg-neutral-100";
+        const iconColor = active || done ? "text-neutral-0" : passed ? "text-success-600" : "text-neutral-400";
         const labelColor = active
-          ? danger ? "text-danger-700" : done ? "text-success-700" : "text-primary-800"
-          : done ? "font-semibold text-success-700" : reached ? "font-semibold text-neutral-900" : "text-neutral-500";
-        // Warna stage aktif merentang: ikon → label → garis --- waktu.
-        const lineColor = active
-          ? danger ? "border-danger-600" : done ? "border-success-600" : "border-primary-800"
-          : "border-neutral-300";
-        const timeColor = active
-          ? danger ? "text-danger-700" : done ? "text-success-700" : "text-primary-800"
-          : "text-neutral-500";
+          ? danger ? "font-bold text-danger-700" : "font-bold text-warning-800"
+          : done ? "font-bold text-success-700" : passed ? "font-semibold text-success-600" : "text-neutral-500";
+        const connectorColor = done || passed ? "text-success-600" : "text-neutral-300";
+        const horizontalColor = active
+          ? danger ? "border-danger-600" : "border-warning-600"
+          : done || passed ? "border-success-600" : "border-neutral-300";
+        const timeColor = active ? danger ? "text-danger-700" : "text-warning-800" : done || passed ? "text-success-700" : "text-neutral-500";
         return (
-          <li key={status} className="flex items-center gap-3 text-sm">
-            <span className={`flex size-7 shrink-0 items-center justify-center rounded-full ${bubble}`} aria-hidden="true">
-              <Icon className={`size-4 ${iconColor}`} />
+          <li key={status} className="flex min-h-10 gap-3 text-sm">
+            <span className="flex w-7 shrink-0 flex-col items-center" aria-hidden="true">
+              <span className={`flex size-7 shrink-0 items-center justify-center rounded-full ${bubble}`}>
+                <Icon className={`size-4 ${iconColor}`} />
+              </span>
+              {idx < statuses.length - 1 && <span className={`-mt-px flex-1 border-l-2 ${connectorColor}`} />}
             </span>
-            <span className={`shrink-0 ${labelColor}`}>{STATUS[status].label}</span>
-            {time && (
-              <>
-                <span className={`h-px min-w-8 flex-1 border-b border-dashed ${lineColor}`} aria-hidden="true" />
-                <span className={`shrink-0 text-xs ${active ? "font-semibold" : "font-normal"} ${timeColor}`}>{time}</span>
-              </>
-            )}
+            <span className={`shrink-0 pt-1 ${labelColor}`}>{STATUS[status].label}</span>
+            <span className={`mt-[13px] h-0 min-w-6 flex-1 border-t-2 border-dashed ${reached ? horizontalColor : "border-transparent"}`} aria-hidden="true" />
+            {time && <span className={`shrink-0 pt-1 text-xs ${active ? "font-semibold" : "font-normal"} ${timeColor}`}>{time}</span>}
           </li>
         );
       })}

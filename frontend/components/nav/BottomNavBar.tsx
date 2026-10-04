@@ -3,7 +3,18 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { ClipboardCheck, Gift, HandHeart, LayoutDashboard, List, Map, Settings, Truck, Users } from "lucide-react";
+import type { IconType } from "react-icons";
+import {
+  PiClipboardText, PiClipboardTextFill,
+  PiGear, PiGearFill,
+  PiGift, PiGiftFill,
+  PiHandHeart, PiHandHeartFill,
+  PiListBullets, PiListBulletsFill,
+  PiMapTrifold, PiMapTrifoldFill,
+  PiSquaresFour, PiSquaresFourFill,
+  PiTruck, PiTruckFill,
+  PiUsers, PiUsersFill,
+} from "react-icons/pi";
 import { useKontribusiPanel } from "@/lib/kontribusiPanelStore";
 import { useTukarPoinPanel } from "@/lib/tukarPoinPanelStore";
 import { useNavGuard } from "@/lib/navigationGuard";
@@ -13,17 +24,17 @@ import { useUnreadBadges } from "@/features/notifications/useUnreadBadges";
 const STAFF = ["admin", "super_admin", "field_team"] as const;
 const ADMIN = ["admin", "super_admin"] as const;
 
-const menus: { href: string; label: string; icon: typeof Map; action: "navigate" | "panel" | "tukarpoin"; roles?: readonly string[]; hideRoles?: readonly string[] }[] = [
-  { href: "/peta", label: "Peta", icon: Map, action: "navigate" },
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, action: "navigate", roles: ADMIN },
-  { href: "/review", label: "Review", icon: ClipboardCheck, action: "navigate", roles: ADMIN },
-  { href: "/dispatch", label: "Dispatch", icon: Truck, action: "navigate", roles: ADMIN },
-  { href: "/tickets", label: "Tiket", icon: List, action: "navigate", roles: ADMIN },
+const menus: { href: string; label: string; icon: IconType; activeIcon: IconType; action: "navigate" | "panel" | "tukarpoin"; roles?: readonly string[]; hideRoles?: readonly string[] }[] = [
+  { href: "/peta", label: "Peta", icon: PiMapTrifold, activeIcon: PiMapTrifoldFill, action: "navigate" },
+  { href: "/dashboard", label: "Dashboard", icon: PiSquaresFour, activeIcon: PiSquaresFourFill, action: "navigate", roles: ADMIN },
+  { href: "/review", label: "Review", icon: PiClipboardText, activeIcon: PiClipboardTextFill, action: "navigate", roles: ADMIN },
+  { href: "/dispatch", label: "Dispatch", icon: PiTruck, activeIcon: PiTruckFill, action: "navigate", roles: ADMIN },
+  { href: "/tickets", label: "Tiket", icon: PiListBullets, activeIcon: PiListBulletsFill, action: "navigate", roles: ADMIN },
   // Role Tim: semua menunya tampil langsung di bottom bar (tanpa hamburger).
-  { href: "/teams", label: "Tiket", icon: Users, action: "navigate", roles: ["field_team"] },
-  { href: "/settings", label: "Pengaturan", icon: Settings, action: "navigate", roles: ["field_team"] },
-  { href: "/kontribusi", label: "Kontribusi", icon: HandHeart, action: "panel", hideRoles: STAFF },
-  { href: "/tukar-poin", label: "Poin", icon: Gift, action: "tukarpoin", hideRoles: STAFF },
+  { href: "/teams", label: "Tiket", icon: PiUsers, activeIcon: PiUsersFill, action: "navigate", roles: ["field_team"] },
+  { href: "/settings", label: "Pengaturan", icon: PiGear, activeIcon: PiGearFill, action: "navigate", roles: ["field_team"] },
+  { href: "/kontribusi", label: "Kontribusi", icon: PiHandHeart, activeIcon: PiHandHeartFill, action: "panel", hideRoles: STAFF },
+  { href: "/tukar-poin", label: "Poin", icon: PiGift, activeIcon: PiGiftFill, action: "tukarpoin", hideRoles: STAFF },
 ];
 
 export type NavMenu = (typeof menus)[number];
@@ -67,7 +78,7 @@ export function BottomNavBar({ activePath, publicVisitor = false }: BottomNavBar
 
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-[1000] flex items-stretch border-t border-neutral-200 bg-neutral-0 md:hidden"
+      className="fixed inset-x-0 bottom-0 z-[1000] flex items-stretch rounded-t-3xl bg-neutral-0 px-3 pt-1 shadow-[0_-6px_20px_rgba(10,33,54,0.08)] md:hidden"
       style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
       aria-label="Navigasi utama"
     >
@@ -78,88 +89,91 @@ export function BottomNavBar({ activePath, publicVisitor = false }: BottomNavBar
           <div className="h-8 w-16 animate-pulse rounded-lg bg-neutral-100" />
         </div>
       ) : (
-      visibleMenus.map(({ href, label, icon: Icon, action }) => {
-        const active = action === "panel" ? panelOpen : action === "tukarpoin" ? tukarOpen : (action === "navigate" && !panelOpen && !tukarOpen && (activePath === href || activePath.startsWith(href + "/")));
+        visibleMenus.map(({ href, label, icon: Icon, activeIcon: ActiveIcon, action }) => {
+          const active = action === "panel" ? panelOpen : action === "tukarpoin" ? tukarOpen : (action === "navigate" && !panelOpen && !tukarOpen && (activePath === href || activePath.startsWith(href + "/")));
+          // Satu keluarga ikon (Phosphor): outline saat tidak aktif, fill saat aktif.
+          const Glyph = active ? ActiveIcon : Icon;
+          const iconClass = `size-6 ${active ? "text-primary-800" : "text-neutral-400"}`;
 
-        if (action === "panel") {
+          if (action === "panel") {
+            return (
+              <button
+                key={href}
+                type="button"
+                onClick={() => {
+                  closeTukar();
+                  if (activePath !== "/peta") {
+                    if (!requestLeave("/peta", openPanel)) return;
+                    openPanel();
+                    router.push("/peta");
+                    return;
+                  }
+                  togglePanel();
+                }}
+                className={`flex flex-1 flex-col items-center gap-0.5 py-2.5 text-xs font-medium transition-colors ${
+                  active ? "text-primary-800" : "text-neutral-500 hover:text-neutral-700"
+                }`}
+              >
+                <Glyph className={iconClass} aria-hidden="true" />
+                <span>{label}</span>
+                {active && <span className="mt-0.5 h-0.5 w-5 rounded-full bg-primary-800" aria-hidden="true" />}
+              </button>
+            );
+          }
+
+          if (action === "tukarpoin") {
+            return (
+              <button
+                key={href}
+                type="button"
+                onClick={() => {
+                  closePanel();
+                  if (activePath !== "/peta") {
+                    if (!requestLeave("/peta", openTukar)) return;
+                    openTukar();
+                    router.push("/peta");
+                    return;
+                  }
+                  toggleTukar();
+                }}
+                className={`flex flex-1 flex-col items-center gap-0.5 py-2.5 text-xs font-medium transition-colors ${active ? "text-primary-800" : "text-neutral-500 hover:text-neutral-700"}`}
+              >
+                <Glyph className={iconClass} aria-hidden="true" />
+                <span>{label}</span>
+                {active && <span className="mt-0.5 h-0.5 w-5 rounded-full bg-primary-800" aria-hidden="true" />}
+              </button>
+            );
+          }
+
           return (
-            <button
+            <Link
               key={href}
-              type="button"
-              onClick={() => {
-                closeTukar();
-                if (activePath !== "/peta") {
-                  if (!requestLeave("/peta", openPanel)) return;
-                  openPanel();
-                  router.push("/peta");
+              href={href}
+              onClick={(e) => {
+                if (!requestLeave(href)) {
+                  e.preventDefault();
                   return;
                 }
-                togglePanel();
-              }}
-              className={`flex flex-1 flex-col items-center gap-0.5 py-2.5 text-xs font-medium transition-colors ${
-                active ? "text-primary-800" : "text-neutral-500 hover:text-neutral-700"
-              }`}
-            >
-              <Icon className={`size-6 ${active ? "text-primary-800" : "text-neutral-400"}`} strokeWidth={active ? 2.2 : 1.8} aria-hidden="true" />
-              <span>{label}</span>
-              {active && <span className="mt-0.5 h-0.5 w-5 rounded-full bg-primary-800" aria-hidden="true" />}
-            </button>
-          );
-        }
-
-        if (action === "tukarpoin") {
-          return (
-            <button
-              key={href}
-              type="button"
-              onClick={() => {
                 closePanel();
-                if (activePath !== "/peta") {
-                  if (!requestLeave("/peta", openTukar)) return;
-                  openTukar();
-                  router.push("/peta");
-                  return;
-                }
-                toggleTukar();
+                closeTukar();
+                // Buka tab → notifikasi tipe tsb ditandai sudah dibaca (badge hilang).
+                markPathRead(href);
               }}
               className={`flex flex-1 flex-col items-center gap-0.5 py-2.5 text-xs font-medium transition-colors ${active ? "text-primary-800" : "text-neutral-500 hover:text-neutral-700"}`}
+              aria-current={active ? "page" : undefined}
             >
-              <Icon className={`size-6 ${active ? "text-primary-800" : "text-neutral-400"}`} strokeWidth={active ? 2.2 : 1.8} aria-hidden="true" />
+              <span className="relative">
+                <Glyph className={iconClass} aria-hidden="true" />
+                {badgeFor(href) > 0 && (
+                  <span className="absolute -right-1.5 -top-1 flex min-w-4 items-center justify-center rounded-full bg-danger-600 px-1 text-[10px] font-bold leading-4 text-neutral-0" aria-label={`${badgeFor(href)} notifikasi belum dibaca`}>
+                    {badgeFor(href) > 99 ? "99+" : badgeFor(href)}
+                  </span>
+                )}
+              </span>
               <span>{label}</span>
               {active && <span className="mt-0.5 h-0.5 w-5 rounded-full bg-primary-800" aria-hidden="true" />}
-            </button>
+            </Link>
           );
-        }
-
-        return (
-          <Link
-            key={href}
-            href={href}
-            onClick={(e) => {
-              if (!requestLeave(href)) {
-                e.preventDefault();
-                return;
-              }
-              closePanel();
-              closeTukar();
-              // Buka tab → notifikasi tipe tsb ditandai sudah dibaca (badge hilang).
-              markPathRead(href);
-            }}
-            className={`flex flex-1 flex-col items-center gap-0.5 py-2.5 text-xs font-medium transition-colors ${active ? "text-primary-800" : "text-neutral-500 hover:text-neutral-700"}`}
-            aria-current={active ? "page" : undefined}
-          >
-            <span className="relative">
-              <Icon className={`size-6 ${active ? "text-primary-800" : "text-neutral-400"}`} strokeWidth={active ? 2.2 : 1.8} aria-hidden="true" />
-              {badgeFor(href) > 0 && (
-                <span className="absolute -right-1.5 -top-1 flex min-w-4 items-center justify-center rounded-full bg-danger-600 px-1 text-[10px] font-bold leading-4 text-neutral-0" aria-label={`${badgeFor(href)} notifikasi belum dibaca`}>
-                  {badgeFor(href) > 99 ? "99+" : badgeFor(href)}
-                </span>
-              )}
-            </span>
-            <span>{label}</span>
-            {active && <span className="mt-0.5 h-0.5 w-5 rounded-full bg-primary-800" aria-hidden="true" />}
-          </Link>
-        );
         })
       )}
     </nav>

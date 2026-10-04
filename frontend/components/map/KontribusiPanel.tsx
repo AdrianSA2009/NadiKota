@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Camera, Gift, Check, Coins, ListOrdered, ShieldQuestion, Wrench, X } from "lucide-react";
+import { Check, ChevronDown, ListFilter, ListOrdered, ShieldQuestion, Wrench, X } from "lucide-react";
 import { FaCamera, FaCoins, FaGift, FaPaperPlane, FaMagnifyingGlassLocation } from "react-icons/fa6";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/apiClient";
@@ -57,9 +57,9 @@ function ProfilCard({ profil, points, solidCard, className = "" }: {
       <button
         type="button"
         onClick={points.onTukar}
-        className={`relative mt-4 flex w-full items-center justify-center gap-1.5 rounded-2xl py-3 text-sm font-bold shadow-md transition hover:-translate-y-0.5 ${solidCard ? "bg-primary-800 text-neutral-0 hover:bg-primary-800" : "bg-neutral-0 text-primary-800 hover:bg-primary-50"}`}
+        className={`relative mt-4 flex w-full items-center justify-center gap-1.5 rounded-2xl py-3 text-sm font-bold shadow-md transition hover:-translate-y-0.5 ${solidCard ? "bg-primary-800 text-neutral-0 hover:bg-primary-700" : "bg-neutral-0 text-primary-800 hover:bg-primary-50"}`}
       >
-        <FaGift className="size-4 text-accent-500" fill="currentColor" aria-hidden="true" />
+        <FaGift className="size-4 text-accent-500" aria-hidden="true" />
         Tukar poin
       </button>
     </div>
@@ -77,7 +77,7 @@ function KontribusiHeader({ onClose, profil, points, onReport, solidCard = false
 
   return (
     <div className="relative shrink-0">
-      {/* Kotak gradasi — mobile: lengkung di BAWAH */}
+      {/* Kotak gradasi — solidCard: lengkung di BAWAH */}
       <div
         className={`relative overflow-hidden px-5 text-neutral-0 ${
           solidCard
@@ -114,7 +114,7 @@ function KontribusiHeader({ onClose, profil, points, onReport, solidCard = false
                     : "bg-neutral-0/10 text-neutral-0 shadow-md hover:bg-neutral-0/20"
                 }`}
               >
-                <FaCamera className="size-4" aria-hidden="true" fill="currentColor" />
+                <FaCamera className="size-4" aria-hidden="true" />
                 Lapor
               </button>
             )}
@@ -126,11 +126,11 @@ function KontribusiHeader({ onClose, profil, points, onReport, solidCard = false
           </div>
         </div>
 
-        {/* Desktop: kartu tetap di dalam gradasi */}
+        {/* Non-solid: kartu di dalam gradasi */}
         {!solidCard && hasCard && <ProfilCard profil={profil!} points={points!} solidCard={false} className="mt-4" />}
       </div>
 
-      {/* Mobile: kartu di LUAR gradasi, menimpa tepi bawah */}
+      {/* solidCard: kartu di LUAR gradasi, menimpa tepi bawah */}
       {solidCard && hasCard && (
         <div className="relative z-10 -mt-12 px-4">
           <ProfilCard profil={profil!} points={points!} solidCard />
@@ -252,13 +252,13 @@ function EmptyReportState() {
         href="/report"
         className="mt-5 flex items-center gap-2 rounded-full bg-primary-800 px-6 py-3 text-sm font-bold text-neutral-0 shadow-md transition hover:-translate-y-0.5 hover:bg-primary-700"
       >
-        <FaCamera className="mr-2 inline size-4" aria-hidden="true" />
+        <FaCamera className="size-4" aria-hidden="true" />
         Lapor Sekarang
       </Link>
 
       {/* Alur singkat */}
       <ol className="mt-8 grid w-full grid-cols-4 gap-2">
-        {LANGKAH.map(({ icon: Icon, label }, i) => (
+        {LANGKAH.map(({ icon: Icon, label }) => (
           <li key={label} className="flex flex-col items-center gap-2">
             <span className="flex size-11 items-center justify-center rounded-2xl bg-neutral-0 text-primary-700 shadow-sm ring-1 ring-neutral-200">
               <Icon className="size-4" aria-hidden="true" />
@@ -267,6 +267,117 @@ function EmptyReportState() {
           </li>
         ))}
       </ol>
+    </section>
+  );
+}
+
+/** Daftar riwayat + chip filter (dipakai desktop & mobile). Chip hanya muncul jika sudah ada tiket. */
+function RiwayatLaporan({ tickets, onOpen }: { tickets: Ticket[]; onOpen: () => void }) {
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [draftFilter, setDraftFilter] = useState<StatusFilter>(statusFilter);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const filterRef = useRef<HTMLDivElement>(null);
+  const filtered = statusFilter === "all" ? tickets : tickets.filter((t) => t.status === statusFilter);
+
+  useEffect(() => {
+    if (!filterOpen) return;
+    function closeOnOutside(e: MouseEvent) {
+      if (filterRef.current && !filterRef.current.contains(e.target as Node)) setFilterOpen(false);
+    }
+    function closeOnEscape(e: KeyboardEvent) {
+      if (e.key === "Escape") setFilterOpen(false);
+    }
+    document.addEventListener("mousedown", closeOnOutside);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("mousedown", closeOnOutside);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [filterOpen]);
+
+  if (tickets.length === 0) return <EmptyReportState />;
+
+  return (
+    <section>
+      <div className="scrollbar-hide -mx-4 mb-3 flex flex-nowrap gap-2 overflow-x-auto px-4 pb-1 md:mx-0 md:hidden" role="group" aria-label="Filter status laporan">
+        {STATUS_FILTERS.map((f) => {
+          const Icon = f.icon;
+          return (
+            <button
+              key={f.id}
+              type="button"
+              onClick={() => setStatusFilter(f.id)}
+              aria-pressed={statusFilter === f.id}
+              className={`flex shrink-0 items-center gap-1.5 rounded-full border-[1.5px] px-4 py-2 text-xs font-bold transition ${statusFilter === f.id ? "border-[#0a2136] bg-[#0a2136] text-neutral-0 shadow-sm" : "border-neutral-200 bg-neutral-0 text-neutral-600"}`}
+            >
+              <Icon className="size-3.5" aria-hidden="true" />
+              {f.label}
+            </button>
+          );
+        })}
+      </div>
+
+      <div ref={filterRef} className="relative mb-3 hidden md:block">
+        <button
+          type="button"
+          aria-expanded={filterOpen}
+          aria-haspopup="dialog"
+          onClick={() => { setDraftFilter(statusFilter); setFilterOpen((open) => !open); }}
+          className={`flex min-h-11 w-full items-center justify-between rounded-[14px] border-[1.5px] px-4 text-sm font-extrabold leading-none text-[#0a2136] shadow-sm transition hover:border-neutral-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 ${statusFilter !== "all" ? "border-accent-500 bg-[#f0fbf8]" : "border-neutral-200 bg-neutral-0"}`}
+        >
+          <span className="flex items-center gap-2.5"><ListFilter className="size-4 text-accent-600" aria-hidden="true" />Status</span>
+          <span className="flex items-center gap-2"><span className={`rounded-full px-2.5 py-1 text-xs font-bold ${statusFilter === "all" ? "bg-neutral-100 text-neutral-500" : "bg-[#0a2136] text-neutral-0"}`}>{STATUS_FILTERS.find((f) => f.id === statusFilter)?.label ?? "Semua"}</span><ChevronDown className={`size-3.5 text-neutral-500 transition-transform ${filterOpen ? "rotate-180" : ""}`} aria-hidden="true" /></span>
+        </button>
+
+        {filterOpen && (
+          <section role="dialog" aria-label="Filter status laporan" className="absolute left-0 right-0 top-full z-30 mt-2 rounded-[20px] border border-neutral-200 bg-neutral-0 p-3.5 shadow-[0_18px_40px_rgba(10,33,54,0.2)]">
+            <h3 className="text-[15px] font-extrabold text-[#0a2136]">Filter status</h3>
+            <p className="mb-2.5 mt-0.5 text-xs text-neutral-500">Tampilkan laporan berdasarkan statusnya</p>
+            <div className="space-y-1.5">
+              {STATUS_FILTERS.map((f) => {
+                const Icon = f.icon;
+                const count = f.id === "all" ? tickets.length : tickets.filter((t) => t.status === f.id).length;
+                const selected = draftFilter === f.id;
+                const dotClass = f.id === "queued" ? "bg-[#f0a63a]" : f.id === "needs_review" ? "bg-[#3b6cf0]" : f.id === "completed" ? "bg-accent-500" : f.id === "in_progress" ? "bg-primary-600" : "bg-neutral-400";
+                return (
+                  <button
+                    key={f.id}
+                    type="button"
+                    aria-pressed={selected}
+                    onClick={() => setDraftFilter(f.id)}
+                    disabled={f.id !== "all" && count === 0}
+                    className={`flex w-full items-center gap-3 rounded-[14px] border-2 px-3 py-2.5 text-left transition disabled:cursor-not-allowed disabled:opacity-45 ${selected ? "border-accent-500 bg-[#f4fcfa]" : "border-transparent bg-neutral-0 hover:border-neutral-200 hover:bg-neutral-50"}`}
+                  >
+                    <span className={`size-2.5 shrink-0 rounded-full ${dotClass}`} aria-hidden="true" />
+                    <Icon className="hidden size-4 text-neutral-500 sm:block" aria-hidden="true" />
+                    <span className="min-w-0 flex-1 text-[13px] font-bold text-[#0a2136]">{f.label === "Semua" ? "Semua" : f.label}</span>
+                    <span className="min-w-7 rounded-full bg-[#f4f7fa] px-2 py-1 text-center text-xs font-extrabold text-[#0a2136]">{count}</span>
+                    <span className={`flex size-6 shrink-0 items-center justify-center rounded-full border-2 ${selected ? "border-accent-500 bg-accent-500 text-neutral-0" : "border-neutral-300 text-transparent"}`}><Check className="size-3.5" aria-hidden="true" /></span>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="mt-3 flex gap-2.5">
+              <button type="button" onClick={() => setDraftFilter("all")} className="min-h-10 flex-[0.7] rounded-xl bg-[#f4f7fa] px-3 text-sm font-extrabold text-neutral-500 transition hover:bg-neutral-200">Reset</button>
+              <button type="button" onClick={() => { setStatusFilter(draftFilter); setFilterOpen(false); }} className="min-h-10 flex-[1.3] rounded-xl bg-primary-800 px-3 text-sm font-extrabold text-neutral-0 transition hover:bg-primary-700"><Check className="mr-1.5 inline size-4 text-accent-500" aria-hidden="true" />Terapkan</button>
+            </div>
+          </section>
+        )}
+      </div>
+
+      {filtered.length > 0 ? (
+        <ul className="space-y-3">
+          {filtered.map((t) => (
+            <li key={t.id}>
+              <ReportRow t={t} onOpen={onOpen} />
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="rounded-2xl border border-dashed border-neutral-300 bg-neutral-0 px-4 py-10 text-center text-sm text-neutral-500">
+          Tidak ada laporan dengan status ini.
+        </p>
+      )}
     </section>
   );
 }
@@ -300,9 +411,7 @@ export function KontribusiPanel() {
     enabled: Boolean(user),
   });
 
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const tickets = data?.data ?? [];
-  const filteredTickets = statusFilter === "all" ? tickets : tickets.filter((t) => t.status === statusFilter);
 
   // Tutup panel otomatis saat user berubah jadi admin/super_admin/field_team (mis. baru login).
   useEffect(() => {
@@ -312,6 +421,10 @@ export function KontribusiPanel() {
   // Selama hydration /me belum selesai → jangan render apa pun (hindari kedipan guest → user).
   if (!initialized || isStaffRole) return null;
 
+  const onReport = user ? () => { close(); router.push("/report"); } : undefined;
+  const profil = user ? { name: user.name, username: user.username, avatarUrl: user.avatarUrl } : undefined;
+  const points = user ? { balance, loading: pointsQuery.isLoading, onTukar: () => { close(); openTukar(); } } : undefined;
+
   return (
     <>
       {/* ── Desktop: slide dari kiri, muncul setelah sidebar ── */}
@@ -320,32 +433,11 @@ export function KontribusiPanel() {
         style={{ transform: panelOpen ? "translateX(240px)" : "translateX(-100%)" }}
       >
         <div className="flex h-full flex-col">
-          <KontribusiHeader
-            onClose={close}
-            onReport={user ? () => { close(); router.push("/report"); } : undefined}
-            profil={user ? { name: user.name, username: user.username, avatarUrl: user.avatarUrl } : undefined}
-            points={user ? { balance, loading: pointsQuery.isLoading, onTukar: () => { close(); openTukar(); } } : undefined}
-          />
+          <KontribusiHeader solidCard onClose={close} onReport={onReport} profil={profil} points={points} />
 
           {/* Konten */}
-          <div className="flex-1 overflow-y-auto bg-neutral-50 px-5 py-4">
-            {!user ? (
-              <GuestGate onLogin={openLogin} />
-            ) : (
-              <section>
-                {tickets.length > 0 ? (
-                  <ul className="space-y-2">
-                    {tickets.map((t) => (
-                      <li key={t.id}>
-                        <ReportRow t={t} onOpen={close} />
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <EmptyReportState />
-                )}
-              </section>
-            )}
+          <div className="flex-1 overflow-y-auto bg-neutral-50 px-4 pb-6 pt-4">
+            {!user ? <GuestGate onLogin={openLogin} /> : <RiwayatLaporan tickets={tickets} onOpen={close} />}
           </div>
         </div>
       </div>
@@ -355,52 +447,11 @@ export function KontribusiPanel() {
         className="md:hidden fixed inset-0 z-[1000] flex flex-col bg-neutral-0 shadow-2xl transition-transform duration-300 ease-out"
         style={{ transform: panelOpen ? "translateY(0)" : "translateY(100%)" }}
       >
-        <KontribusiHeader
-          solidCard
-          onReport={user ? () => { close(); router.push("/report"); } : undefined}
-          profil={user ? { name: user.name, username: user.username, avatarUrl: user.avatarUrl } : undefined}
-          points={user ? { balance, loading: pointsQuery.isLoading, onTukar: () => { close(); openTukar(); } } : undefined}
-        />
+        <KontribusiHeader solidCard onReport={onReport} profil={profil} points={points} />
 
         {/* Konten — scroll di dalam layar penuh */}
         <div className="flex-1 overflow-y-auto bg-neutral-50 px-4 pb-28 pt-4">
-          {!user ? (
-            <GuestGate onLogin={openLogin} />
-          ) : (
-            <section>
-            {tickets.length > 0 && (
-              <div className="scrollbar-hide -mx-4 mb-3 flex gap-2 overflow-x-auto px-4 pb-1" role="group" aria-label="Filter status laporan">
-                {STATUS_FILTERS.map((f) => (
-                  <button
-                    key={f.id}
-                    type="button"
-                    onClick={() => setStatusFilter(f.id)}
-                    aria-pressed={statusFilter === f.id}
-                    className={`flex shrink-0 items-center gap-1.5 rounded-full px-4 py-2 text-xs font-bold transition ${statusFilter === f.id ? "bg-accent-500 text-neutral-0 shadow-sm" : "border border-neutral-200 bg-neutral-0 text-neutral-600"}`}
-                  >
-                    {(() => { const Icon = f.icon; return <Icon className="size-3.5" aria-hidden="true" />; })()}
-                    {f.label}
-                  </button>
-                  ))}
-              </div>
-              )}
-              {filteredTickets.length > 0 ? (
-                <ul className="space-y-3">
-                  {filteredTickets.map((t) => (
-                    <li key={t.id}>
-                      <ReportRow t={t} onOpen={close} />
-                    </li>
-                  ))}
-                </ul>
-              ) : tickets.length > 0 ? (
-                <p className="rounded-2xl border border-dashed border-neutral-300 bg-neutral-0 px-4 py-10 text-center text-sm text-neutral-500">
-                  Tidak ada laporan dengan status ini.
-                </p>
-              ) : (
-                <EmptyReportState />
-              )}
-            </section>
-          )}
+          {!user ? <GuestGate onLogin={openLogin} /> : <RiwayatLaporan tickets={tickets} onOpen={close} />}
         </div>
       </div>
     </>

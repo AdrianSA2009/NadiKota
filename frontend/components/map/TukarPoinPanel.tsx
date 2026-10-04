@@ -1,12 +1,11 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Coins, Gift, Ticket, X } from "lucide-react";
-import { Button } from "@/components/ui/Button";
+import { X } from "lucide-react";
+import { FaBullseye, FaCheck, FaCircleCheck, FaCircleInfo, FaCoins, FaGift, FaTicket } from "react-icons/fa6";
 import { apiClient } from "@/lib/apiClient";
-import { useToastStore } from "@/lib/toastStore";
 import { useAuthStore } from "@/features/auth/authStore";
 import { useTukarPoinPanel } from "@/lib/tukarPoinPanelStore";
 import { RewardIcon } from "@/lib/rewardIcons";
@@ -25,59 +24,57 @@ async function fetchPoints(): Promise<{ balance: number }> {
 
 type PointsData = { balance: number; loading: boolean; affordableCount: number; total: number; onMyGifts: () => void };
 
-/** Header panel Tukar Poin — gradasi navy → teal, judul gradient, kartu poin "frosted". */
+/** Header panel Tukar Poin — gradasi navy lengkung bawah, kartu saldo menimpa tepi header. Satu sumber untuk desktop & mobile. */
 function TukarPoinHeader({ onClose, points }: { onClose?: () => void; points?: PointsData }) {
-  const pct = points && points.total > 0 ? Math.round((points.affordableCount / points.total) * 100) : 0;
   return (
-    <div className="relative overflow-hidden bg-gradient-to-br from-primary-700 via-primary-800 to-primary-900 px-5 py-5 text-neutral-0">
-      {/* Ornamen teal + glow navy */}
-      <div className="absolute -right-10 -top-12 size-36 rounded-full bg-accent-600/25" aria-hidden="true" />
-      <div className="absolute -right-1 top-14 size-16 rounded-full bg-accent-500/15" aria-hidden="true" />
-      <div className="absolute -bottom-12 -left-8 size-32 rounded-full bg-primary-600/40 blur-lg" aria-hidden="true" />
+    <div className="relative shrink-0">
+      <div className={`relative overflow-hidden rounded-b-[32px] bg-[linear-gradient(160deg,#0a2136_0%,#123a5c_100%)] px-5 pt-[22px] text-neutral-0 ${points ? "pb-[70px]" : "pb-8"}`}>
+        <div className="absolute -right-[60px] -top-[70px] size-[200px] rounded-full bg-[#1abc9c]/[0.18]" aria-hidden="true" />
 
-      <div className="relative flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.2em] text-accent-500">
-            <Gift className="size-3.5" aria-hidden="true" />
-            Hadiah Kontribusi
-          </p>
-          <h2 className="mt-1.5 bg-gradient-to-r from-neutral-0 via-neutral-0 to-accent-500 bg-clip-text text-2xl font-extrabold tracking-tight text-transparent">
-            Tukar Poin
-          </h2>
-          <p className="mt-0.5 text-xs text-primary-100/80">Tukarkan poin jadi hadiah nyata</p>
+        <div className="relative flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="text-3xl font-extrabold tracking-tight text-neutral-0">Tukar Poin</h2>
+            <p className="mt-0.5 text-xs text-primary-100/80">Tukarkan poin jadi hadiah nyata</p>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            {points && (
+              <button
+                type="button"
+                onClick={points.onMyGifts}
+                className="flex items-center gap-2 rounded-full bg-neutral-0/[0.14] px-3.5 py-2.5 text-[13px] font-bold leading-none text-neutral-0 transition hover:bg-neutral-0/20"
+              >
+                <FaTicket className="size-4 text-[#1abc9c]" aria-hidden="true" />
+                Hadiah saya
+              </button>
+            )}
+            {onClose && (
+              <button type="button" onClick={onClose} className="rounded-full border border-neutral-0/20 bg-neutral-0/10 p-2 text-primary-100 transition hover:bg-neutral-0/20" aria-label="Tutup">
+                <X className="size-5" />
+              </button>
+            )}
+          </div>
         </div>
-        {onClose && (
-          <button type="button" onClick={onClose} className="shrink-0 rounded-full border border-neutral-0/20 bg-neutral-0/10 p-2 text-primary-100 transition hover:bg-neutral-0/20" aria-label="Tutup">
-            <X className="size-5" />
-          </button>
-        )}
       </div>
 
+      {/* Kartu saldo — di luar gradasi, menimpa tepi bawah */}
       {points && (
-        <div className="relative mt-4 overflow-hidden rounded-2xl border border-accent-500/40 bg-neutral-0/10 p-4 shadow-[0_8px_24px_rgba(0,0,0,0.25)] backdrop-blur-sm">
-          <div className="absolute -right-5 -top-7 size-20 rounded-full bg-accent-500/10" aria-hidden="true" />
-          <div className="relative flex items-center justify-between gap-3">
-            <p className="flex items-baseline gap-2">
-              <span className="text-4xl font-extrabold leading-none text-accent-500">{points.loading ? "…" : points.balance}</span>
-              <span className="text-xs font-semibold text-primary-100/90">poin kamu</span>
+        <section aria-label="Poin kamu" className="relative z-10 -mt-[34px] px-4">
+          <div className="flex items-center justify-between gap-3 rounded-[18px] bg-neutral-0 px-4 py-3 shadow-[0_10px_24px_rgba(10,33,54,0.12)]">
+            <div className="flex items-center gap-2.5">
+              <span className="flex size-[38px] items-center justify-center rounded-full bg-[#e6f8f4] text-base text-[#0f9a80]" aria-hidden="true">
+                <FaCoins />
+              </span>
+              <div>
+                <b className="block text-2xl font-extrabold leading-none text-[#0a2136]">{points.loading ? "…" : points.balance}</b>
+                <small className="mt-0.5 block text-[11.5px] font-semibold text-neutral-500">poin kamu</small>
+              </div>
+            </div>
+            <p className="text-right text-xs font-bold leading-snug text-neutral-500">
+              Siap ditukar
+              <strong className="block text-[#0a2136]">{points.affordableCount} dari {points.total} hadiah</strong>
             </p>
-            <button
-              type="button"
-              onClick={points.onMyGifts}
-              className="flex shrink-0 items-center gap-1.5 rounded-full bg-neutral-0 px-4 py-2 text-xs font-extrabold text-primary-800 shadow-lg transition hover:-translate-y-0.5 hover:bg-primary-50"
-            >
-              <Ticket className="size-4" aria-hidden="true" />
-              Hadiah Saya
-            </button>
           </div>
-          <div className="relative mt-3 flex items-center justify-between text-xs">
-            <span className="text-primary-100/80">Hadiah siap ditukar</span>
-            <span className="font-bold text-neutral-0">{points.affordableCount} dari {points.total}</span>
-          </div>
-          <div className="relative mt-2 h-2 overflow-hidden rounded-full bg-neutral-0/20">
-            <div className="h-full rounded-full bg-gradient-to-r from-accent-600 to-accent-500 transition-all duration-500" style={{ width: `${pct}%` }} aria-hidden="true" />
-          </div>
-        </div>
+        </section>
       )}
     </div>
   );
@@ -88,10 +85,10 @@ export function TukarPoinPanel() {
   const initialized = useAuthStore((s) => s.initialized);
   const { open, closePanel } = useTukarPoinPanel();
   const queryClient = useQueryClient();
-  const showToast = useToastStore((s) => s.show);
   const router = useRouter();
   const [claimReward, setClaimReward] = useState<RewardItem | null>(null);
   const [claimError, setClaimError] = useState<string | null>(null);
+  const [claimResult, setClaimResult] = useState<ClaimResult | null>(null);
 
   const panelOpen = open;
   const rewardsQuery = useQuery({ queryKey: ["rewards"], queryFn: fetchRewards, staleTime: 60_000, enabled: initialized });
@@ -104,14 +101,11 @@ export function TukarPoinPanel() {
   const redeemMutation = useMutation({
     mutationFn: async (rewardId: number) => (await apiClient.post<{ data: { balance: number; pointsCost: number; message: string; transactionId?: number } }>(`/rewards/${rewardId}/redeem`)).data.data,
     onSuccess: (result) => {
-      showToast("Hadiah berhasil diklaim.", "success");
-      setClaimReward(null);
+      // Tetap di sheet → tampilkan langkah "Berhasil ditukar"; pindah ke /hadiah lewat tombol "Lihat hadiah".
       setClaimError(null);
+      setClaimResult({ balance: result.balance, transactionId: result.transactionId });
       void queryClient.invalidateQueries({ queryKey: ["me-points"] });
       void queryClient.invalidateQueries({ queryKey: ["rewards"] });
-      // Langsung ke halaman QR hadiah yang baru diklaim.
-      closePanel();
-      router.push(result.transactionId ? `/hadiah?new=${result.transactionId}` : "/hadiah");
     },
     onError: (e) => setClaimError(e instanceof Error ? e.message : "Gagal menukar hadiah."),
   });
@@ -128,6 +122,20 @@ export function TukarPoinPanel() {
     setClaimReward(reward);
   }
 
+  function closeClaim() {
+    setClaimReward(null);
+    setClaimError(null);
+    setClaimResult(null);
+    redeemMutation.reset();
+  }
+
+  function viewGifts() {
+    const id = claimResult?.transactionId;
+    closeClaim();
+    closePanel();
+    router.push(id ? `/hadiah?new=${id}` : "/hadiah");
+  }
+
   function confirmClaim() {
     if (!claimReward) return;
     if (balance < claimReward.pointsCost) {
@@ -139,6 +147,10 @@ export function TukarPoinPanel() {
 
   if (!initialized) return null;
 
+  const points: PointsData | undefined = user
+    ? { balance, loading: pointsQuery.isLoading, affordableCount, total: rewards.length, onMyGifts: openMyGifts }
+    : undefined;
+
   return (
     <>
       {/* Desktop panel — slide dari kiri seperti KontribusiPanel */}
@@ -147,12 +159,8 @@ export function TukarPoinPanel() {
         style={{ transform: panelOpen ? "translateX(240px)" : "translateX(-100%)" }}
       >
         <div className="flex h-full flex-col">
-          {/* Header gradient + ornamen */}
-          <TukarPoinHeader
-            onClose={closePanel}
-            points={user ? { balance, loading: pointsQuery.isLoading, affordableCount, total: rewards.length, onMyGifts: openMyGifts } : undefined}
-          />
-          <div className="flex-1 overflow-y-auto bg-neutral-50 px-5 py-4">
+          <TukarPoinHeader onClose={closePanel} points={points} />
+          <div className="flex-1 overflow-y-auto bg-neutral-50 px-4 pb-6 pt-4">
             <RewardContent
               points={user ? balance : 0}
               rewards={rewards}
@@ -169,12 +177,8 @@ export function TukarPoinPanel() {
         className="md:hidden fixed inset-0 z-[1000] flex flex-col bg-neutral-0 shadow-2xl transition-transform duration-300 ease-out"
         style={{ transform: panelOpen ? "translateY(0)" : "translateY(100%)" }}
       >
-        <div className="shrink-0">
-          <TukarPoinHeader
-            points={user ? { balance, loading: pointsQuery.isLoading, affordableCount, total: rewards.length, onMyGifts: openMyGifts } : undefined}
-          />
-        </div>
-        <div className="flex-1 overflow-y-auto bg-neutral-50 px-4 pt-4 pb-24">
+        <TukarPoinHeader points={points} />
+        <div className="flex-1 overflow-y-auto bg-neutral-50 px-4 pb-28 pt-4">
           <RewardContent
             points={user ? balance : 0}
             rewards={rewards}
@@ -192,25 +196,44 @@ export function TukarPoinPanel() {
           balance={balance}
           error={claimError}
           isPending={redeemMutation.isPending}
+          result={claimResult}
           onConfirm={confirmClaim}
-          onClose={() => { setClaimReward(null); setClaimError(null); }}
+          onClose={closeClaim}
+          onViewGifts={viewGifts}
         />
       )}
     </>
   );
 }
 
-function ClaimModal({ reward, balance, error, isPending, onConfirm, onClose }: {
+type ClaimResult = { balance: number; transactionId?: number };
+
+/** Konfirmasi penukaran — 3 langkah: konfirmasi → memproses → berhasil. Mobile = bottom sheet, desktop = dialog tengah. */
+function ClaimModal({ reward, balance, error, isPending, result, onConfirm, onClose, onViewGifts }: {
   reward: RewardItem;
   balance: number;
   error: string | null;
   isPending: boolean;
+  result: ClaimResult | null;
   onConfirm: () => void;
   onClose: () => void;
+  onViewGifts: () => void;
 }) {
   // Drag-to-close hanya untuk versi mobile (bottom sheet)
   const dragRef = useRef({ startY: 0, dy: 0, active: false });
   const [drag, setDrag] = useState({ y: 0, dragging: false });
+
+  const step: "confirm" | "loading" | "success" = result ? "success" : isPending ? "loading" : "confirm";
+  const left = balance - reward.pointsCost;
+
+  // Tidak boleh ditutup saat sedang memproses.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape" && !isPending) onClose();
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [isPending, onClose]);
 
   function dragStart(e: React.PointerEvent<HTMLDivElement>) {
     dragRef.current = { startY: e.clientY, dy: 0, active: true };
@@ -227,96 +250,203 @@ function ClaimModal({ reward, balance, error, isPending, onConfirm, onClose }: {
     const dy = dragRef.current.dy;
     dragRef.current.active = false;
     setDrag({ y: 0, dragging: false });
-    if (dy > 100) onClose();
+    if (dy > 100 && !isPending) onClose();
   }
   function backdropClose(e: React.MouseEvent<HTMLDivElement>) {
+    if (isPending) return;
     if (e.target === e.currentTarget) onClose();
   }
 
-  const header = (grab: boolean) => (
-    <div
-      className={grab ? "shrink-0 cursor-grab touch-none active:cursor-grabbing" : ""}
-      onPointerDown={grab ? dragStart : undefined}
-      onPointerMove={grab ? dragMove : undefined}
-      onPointerUp={grab ? dragEnd : undefined}
-      onPointerCancel={grab ? dragEnd : undefined}
-    >
-      <div className={`relative overflow-hidden bg-primary-800 px-6 pb-5 text-neutral-0 ${grab ? "pt-3" : "pt-5"}`}>
-        <div className="absolute -right-6 -top-6 size-24 rounded-full bg-primary-700/60" aria-hidden="true" />
-        <div className="absolute -bottom-8 right-12 size-16 rounded-full bg-accent-600/30" aria-hidden="true" />
-        {grab && (
-          <div className="mx-auto mb-3 flex w-fit justify-center" aria-hidden="true">
-            <div className="h-1 w-10 rounded-full bg-primary-600" />
+  const ghostBtn = "flex flex-[0.8] items-center justify-center gap-2 rounded-[14px] bg-[#f4f7fa] py-3.5 text-sm font-extrabold leading-none text-neutral-500 transition hover:bg-neutral-100";
+
+  const content = (
+    <div className="px-5 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-1">
+      {step === "confirm" && (
+        <>
+          <div className="flex items-center gap-3.5">
+            <span className="flex size-14 shrink-0 items-center justify-center rounded-[18px] bg-[linear-gradient(135deg,#123a5c,#0a2136)] text-[#1abc9c]" aria-hidden="true">
+              <RewardIcon name={reward.icon} className="size-6" />
+            </span>
+            <div className="min-w-0">
+              <small className="text-xs font-semibold text-neutral-500">Konfirmasi penukaran</small>
+              <h2 className="mt-0.5 text-lg font-extrabold leading-tight text-[#0a2136]">{reward.name}</h2>
+            </div>
           </div>
-        )}
-        <div className="relative">
-          <p className="text-xs font-medium text-primary-100">Konfirmasi Penukaran</p>
-          <h2 className="mt-0.5 text-lg font-bold">{reward.name}</h2>
-        </div>
-      </div>
-    </div>
-  );
 
-  const body = (
-    <div className="flex-1 overflow-y-auto p-6">
-      <div className="space-y-2 rounded-xl border border-accent-500/40 bg-gradient-to-br from-accent-50 to-neutral-0 p-4">
-        <div className="flex items-center justify-between text-xs">
-          <span className="text-neutral-500">Biaya</span>
-          <span className="font-bold text-primary-800">{reward.pointsCost} poin</span>
-        </div>
-        <div className="flex items-center justify-between text-xs">
-          <span className="text-neutral-500">Saldo Anda</span>
-          <span className="font-bold text-neutral-900">{balance} poin</span>
-        </div>
-        <div className="flex items-center justify-between text-xs">
-          <span className="text-neutral-500">Saldo setelah tukar</span>
-          <span className="font-bold text-success-700">{balance - reward.pointsCost} poin</span>
-        </div>
-      </div>
-      {error && (
-        <p role="alert" className="mt-3 flex items-start gap-2 rounded-lg border border-danger-600 bg-danger-50 px-3 py-2.5 text-xs text-danger-700">
-          <span aria-hidden="true" className="font-bold">!</span>{error}
-        </p>
+          <dl className="mt-[18px] rounded-2xl bg-[#f4f7fa] px-4 py-1">
+            <div className="flex items-center justify-between py-[11px] text-[13.5px] font-semibold text-neutral-500">
+              <dt>Biaya hadiah</dt>
+              <dd className="font-extrabold text-[#0a2136]">{reward.pointsCost} poin</dd>
+            </div>
+            <div className="flex items-center justify-between border-t border-dashed border-neutral-200 py-[11px] text-[13.5px] font-semibold text-neutral-500">
+              <dt>Poin kamu sekarang</dt>
+              <dd className="font-extrabold text-[#0a2136]">{balance} poin</dd>
+            </div>
+            <div className="flex items-center justify-between border-t border-dashed border-neutral-200 py-[11px] text-[13.5px] font-semibold text-neutral-500">
+              <dt>Sisa poin</dt>
+              <dd className={`text-[15px] font-extrabold ${left < 0 ? "text-[#b42318]" : "text-[#0f9a80]"}`}>{left} poin</dd>
+            </div>
+          </dl>
+
+          {error && (
+            <p role="alert" className="mt-3 flex items-start gap-2 rounded-xl border border-[#f3b4ae] bg-[#fdecea] px-3 py-2.5 text-xs font-semibold text-[#b42318]">
+              <span aria-hidden="true" className="font-extrabold">!</span>{error}
+            </p>
+          )}
+
+          <p className="mt-3.5 flex items-start gap-2 text-xs font-semibold leading-snug text-neutral-500">
+            <FaCircleInfo className="mt-0.5 size-3.5 shrink-0 text-[#b45f06]" aria-hidden="true" />
+            Poin yang sudah ditukar tidak dapat dikembalikan. Hadiah akan muncul di Hadiah Saya.
+          </p>
+
+          <div className="mt-5 flex gap-2.5">
+            <button type="button" onClick={onClose} className={ghostBtn}>Batal</button>
+            <button
+              type="button"
+              onClick={onConfirm}
+              disabled={left < 0}
+              className="flex flex-1 items-center justify-center gap-2 rounded-[14px] bg-[#1abc9c] py-3.5 text-sm font-extrabold leading-none text-[#0a2136] shadow-[0_8px_18px_rgba(26,188,156,0.3)] transition hover:bg-[#22cfad] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <FaGift aria-hidden="true" />
+              Ya, tukar
+            </button>
+          </div>
+        </>
       )}
-    </div>
-  );
 
-  const footer = (
-    <div className="flex shrink-0 gap-2 border-t border-neutral-200 bg-neutral-0 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
-      <Button type="button" variant="secondary" className="flex-1" onClick={onClose}>Batal</Button>
-      <Button type="button" className="flex-1" onClick={onConfirm} disabled={isPending}>
-        {isPending ? "Memproses..." : "Klaim hadiah"}
-      </Button>
+      {step === "loading" && (
+        <div className="py-[18px] text-center" role="status" aria-live="polite">
+          <div className="mx-auto mb-4 size-14 animate-spin rounded-full border-[5px] border-[#e6f8f4] border-t-[#1abc9c] motion-reduce:animate-none" aria-hidden="true" />
+          <h2 className="text-lg font-extrabold text-[#0a2136]">Memproses penukaran…</h2>
+          <p className="mt-1.5 text-[13px] leading-relaxed text-neutral-500">Mohon tunggu sebentar, jangan tutup halaman ini.</p>
+        </div>
+      )}
+
+      {step === "success" && result && (
+        <>
+          <div className="pt-[18px] text-center">
+            <div className="mx-auto mb-4 flex size-[72px] items-center justify-center rounded-full bg-[#1abc9c] text-3xl text-neutral-0 shadow-[0_0_0_10px_rgba(26,188,156,0.18)]" aria-hidden="true">
+              <FaCheck />
+            </div>
+            <h2 className="text-lg font-extrabold text-[#0a2136]">Berhasil ditukar!</h2>
+            <p className="mt-1.5 text-[13px] leading-relaxed text-neutral-500">
+              <b className="text-[#0a2136]">{reward.name}</b> sudah masuk ke Hadiah Saya. Tunjukkan QR-nya saat ingin memakai.
+            </p>
+            <div className="mx-auto mt-4 inline-flex items-center gap-2 rounded-full bg-[#e6f8f4] px-3.5 py-2 text-[13px] font-extrabold text-[#0f9a80]">
+              <FaCoins aria-hidden="true" />
+              Sisa {result.balance} poin
+            </div>
+          </div>
+          <div className="mt-5 flex gap-2.5">
+            <button type="button" onClick={onClose} className={ghostBtn}>Tutup</button>
+            <button
+              type="button"
+              onClick={onViewGifts}
+              className="flex flex-1 items-center justify-center gap-2 rounded-[14px] bg-[#0a2136] py-3.5 text-sm font-extrabold leading-none text-neutral-0 transition hover:bg-[#123a5c]"
+            >
+              <FaTicket aria-hidden="true" />
+              Lihat hadiah
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 
   return (
     <>
-      {/* Mobile: muncul dari bawah, tarik ke bawah untuk tutup */}
-      <div className="md:hidden fixed inset-0 z-[1200] flex items-end justify-center bg-neutral-900/50 backdrop-blur-sm" role="dialog" aria-modal="true" onClick={backdropClose}>
+      {/* Mobile: bottom sheet, tarik ke bawah untuk tutup */}
+      <div className="md:hidden fixed inset-0 z-[1200] flex items-end justify-center bg-[#0a2136]/55" role="dialog" aria-modal="true" aria-label={`Tukar ${reward.name}`} onClick={backdropClose}>
         <section
-          className="flex max-h-[72vh] w-full flex-col overflow-hidden rounded-t-3xl bg-neutral-0 shadow-xl"
+          className="w-full overflow-hidden rounded-t-[28px] bg-neutral-0 shadow-[0_-12px_40px_rgba(10,33,54,0.25)]"
           style={{
             transform: `translateY(${drag.y}px)`,
             transition: drag.dragging ? "none" : "transform .2s ease-out",
             animation: "sheet-up .25s ease-out",
           }}
         >
-          {header(true)}
-          {body}
-          {footer}
+          <div
+            className="cursor-grab touch-none px-5 pb-3 pt-2.5 active:cursor-grabbing"
+            onPointerDown={dragStart}
+            onPointerMove={dragMove}
+            onPointerUp={dragEnd}
+            onPointerCancel={dragEnd}
+          >
+            <div className="mx-auto h-1 w-10 rounded-full bg-neutral-200" aria-hidden="true" />
+          </div>
+          {content}
         </section>
       </div>
 
-      {/* Desktop: dialog tengah biasa */}
-      <div className="hidden md:flex fixed inset-0 z-[1200] items-center justify-center bg-neutral-900/50 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" onClick={backdropClose}>
-        <section className="w-full max-w-sm overflow-hidden rounded-2xl border border-neutral-200 bg-neutral-0 shadow-xl">
-          {header(false)}
-          {body}
-          {footer}
+      {/* Desktop: dialog tengah */}
+      <div className="hidden md:flex fixed inset-0 z-[1200] items-center justify-center bg-[#0a2136]/55 p-4" role="dialog" aria-modal="true" aria-label={`Tukar ${reward.name}`} onClick={backdropClose}>
+        <section className="w-full max-w-sm overflow-hidden rounded-[28px] bg-neutral-0 pt-5 shadow-[0_-12px_40px_rgba(10,33,54,0.25)]">
+          {content}
         </section>
       </div>
     </>
+  );
+}
+
+/** Hadiah terdekat dengan saldo (selisih terkecil). Siap ditukar → kartu navy; belum → kartu teal + progres. */
+function FeaturedReward({ reward, points, onRedeem, isPending }: {
+  reward: RewardItem;
+  points: number;
+  onRedeem: (reward: RewardItem) => void;
+  isPending: boolean;
+}) {
+  const ready = points >= reward.pointsCost;
+  const pct = reward.pointsCost > 0 ? Math.min(100, Math.round((points / reward.pointsCost) * 100)) : 100;
+
+  return (
+    <section
+      aria-label="Hadiah terdekat"
+      className={`relative overflow-hidden rounded-3xl p-[18px] ${
+        ready ? "bg-[linear-gradient(135deg,#0a2136,#123a5c)] text-neutral-0" : "bg-[linear-gradient(135deg,#0f9a80,#1abc9c_70%,#5fe0c4)] text-[#0a2136]"
+      }`}
+    >
+      {/* Ikon besar sebagai ornamen */}
+      <span
+        className={`pointer-events-none absolute -bottom-5 -right-2 ${ready ? "text-[#1abc9c]/[0.16]" : "text-[#0a2136]/[0.12]"}`}
+        aria-hidden="true"
+      >
+        <RewardIcon name={reward.icon} className="size-28" />
+      </span>
+
+      <span className={`relative inline-flex items-center gap-1.5 rounded-full px-2.5 py-[5px] text-[11.5px] font-bold ${ready ? "bg-[#1abc9c] text-[#0a2136]" : "bg-[#0a2136]/85 text-neutral-0"}`}>
+        {ready ? <FaCircleCheck aria-hidden="true" /> : <FaBullseye aria-hidden="true" />}
+        {ready ? "Siap ditukar" : "Hadiah terdekat"}
+      </span>
+
+      <h2 className="relative mt-3 text-xl font-extrabold">{reward.name}</h2>
+      {reward.description && <p className="relative mt-0.5 line-clamp-2 max-w-[70%] text-[13px] opacity-85">{reward.description}</p>}
+
+      <div className="relative mt-4 flex justify-between text-xs font-bold">
+        <span>{Math.min(points, reward.pointsCost)} / {reward.pointsCost} poin</span>
+        <span>{ready ? "Poin cukup" : `Kurang ${reward.pointsCost - points} poin`}</span>
+      </div>
+      <div
+        className={`relative mt-1.5 h-2 overflow-hidden rounded-full ${ready ? "bg-neutral-0/[0.18]" : "bg-[#0a2136]/[0.18]"}`}
+        role="progressbar"
+        aria-valuenow={Math.min(points, reward.pointsCost)}
+        aria-valuemin={0}
+        aria-valuemax={reward.pointsCost}
+      >
+        <div className={`h-full rounded-full transition-all duration-500 ${ready ? "bg-[#1abc9c]" : "bg-[#0a2136]"}`} style={{ width: `${pct}%` }} />
+      </div>
+
+      {ready && (
+        <button
+          type="button"
+          disabled={isPending}
+          onClick={() => onRedeem(reward)}
+          className="relative mt-4 flex w-full items-center justify-center gap-2 rounded-[14px] bg-[#1abc9c] py-[13px] text-sm font-extrabold leading-none text-[#0a2136] shadow-[0_8px_18px_rgba(26,188,156,0.35)] transition hover:-translate-y-0.5 hover:bg-[#22cfad] disabled:opacity-60"
+        >
+          <FaGift aria-hidden="true" />
+          Tukar sekarang
+        </button>
+      )}
+    </section>
   );
 }
 
@@ -331,7 +461,7 @@ function RewardContent({ points, rewards, isLoggedIn, isPending, onRedeem }: {
     return (
       <div className="flex flex-col items-center rounded-2xl border border-dashed border-neutral-300 bg-neutral-0 px-6 py-12 text-center">
         <span className="mb-4 flex size-16 items-center justify-center rounded-full bg-gradient-to-br from-primary-50 to-accent-50">
-          <Gift className="size-8 text-primary-700" />
+          <FaGift className="size-7 text-primary-700" aria-hidden="true" />
         </span>
         <p className="text-sm font-semibold text-neutral-900">Belum ada hadiah untuk ditukarkan</p>
         <p className="mt-1 text-xs text-neutral-500">Hadiah baru akan tersedia segera. Terus kirim laporan untuk mengumpulkan poin.</p>
@@ -343,41 +473,55 @@ function RewardContent({ points, rewards, isLoggedIn, isPending, onRedeem }: {
   // Termurah dulu — reward yang realistis dicapai lebih dahulu terlihat
   const sorted = [...rewards].sort((a, b) => a.pointsCost - b.pointsCost);
 
+  // Hadiah terdekat = selisih poin terkecil (seri → yang lebih murah). Hanya untuk user login.
+  const featured = isLoggedIn
+    ? sorted.reduce((best, r) => (Math.abs(r.pointsCost - points) < Math.abs(best.pointsCost - points) ? r : best), sorted[0])
+    : null;
+
   return (
     <div>
-      <div className="space-y-3">
+      {featured && <FeaturedReward reward={featured} points={points} onRedeem={onRedeem} isPending={isPending} />}
+
+      <h2 className={`px-1 pb-2.5 text-[15px] font-extrabold text-[#0a2136] ${featured ? "pt-5" : "pt-0"}`}>Semua hadiah</h2>
+
+      <div className="grid grid-cols-2 gap-3">
         {sorted.map((reward) => {
+          // Guest tetap bisa menekan tombol (diarahkan ke login); user login hanya jika poin cukup.
+          const canRedeem = !isLoggedIn || points >= reward.pointsCost;
           return (
             <article
               key={reward.id}
-              className="group relative overflow-hidden rounded-2xl border border-neutral-200 bg-neutral-0 p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-accent-500/50 hover:shadow-md"
+              className="flex flex-col rounded-[20px] bg-neutral-0 shadow-[0_4px_14px_rgba(10,33,54,0.06)]"
             >
-              <div
-                className="absolute inset-y-0 left-0 w-1.5 bg-gradient-to-b from-accent-500 to-primary-700"
-                aria-hidden="true"
-              />
-              <div className="flex items-start gap-3 pl-2.5">
-                <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary-800 to-primary-600 text-neutral-0 shadow-sm">
+              <div className="flex-1 px-3.5 pb-3.5 pt-4">
+                <span className="flex size-12 items-center justify-center rounded-[14px] bg-[linear-gradient(135deg,#123a5c,#0a2136)] text-xl text-[#1abc9c]" aria-hidden="true">
                   <RewardIcon name={reward.icon} className="size-5" />
                 </span>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-neutral-900 group-hover:text-primary-800">
-                    {reward.name}
-                  </p>
-                  {reward.description && (
-                    <p className="mt-0.5 truncate text-xs text-neutral-400">{reward.description}</p>
-                  )}
-                </div>
-                <Button
+                <h3 className="mt-3 text-sm font-bold leading-snug text-[#0a2136]">{reward.name}</h3>
+                {reward.description && <p className="mt-0.5 line-clamp-2 text-[11.5px] leading-snug text-neutral-500">{reward.description}</p>}
+              </div>
+
+              {/* Garis sobekan kupon */}
+              <div className="relative mx-3.5 border-t-2 border-dashed border-neutral-200" aria-hidden="true">
+                <span className="absolute -left-6 -top-[11px] size-5 rounded-full bg-neutral-50" />
+                <span className="absolute -right-6 -top-[11px] size-5 rounded-full bg-neutral-50" />
+              </div>
+
+              <div className="flex items-center justify-between gap-2 px-3.5 pb-3.5 pt-3">
+                <span className="inline-flex items-center gap-1.5 text-[15px] font-extrabold text-[#0f9a80]">
+                  <FaCoins className="size-3.5" aria-hidden="true" />
+                  {reward.pointsCost}
+                </span>
+                <button
                   type="button"
-                  variant="primary"
-                  className="flex flex-row shrink-0 items-center justify-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-semibold shadow-sm"
-                  disabled={isPending}
+                  disabled={isPending || !canRedeem}
                   onClick={() => onRedeem(reward)}
+                  className={`rounded-[10px] px-3 py-2 text-xs font-bold leading-none transition ${
+                    canRedeem ? "bg-[#1abc9c] text-[#0a2136] hover:bg-[#22cfad]" : "cursor-not-allowed bg-[#e8eef4] text-neutral-500"
+                  } disabled:opacity-70`}
                 >
-                  <Coins className="size-3.5" aria-hidden="true" />
-                  <span>{reward.pointsCost}</span>
-                </Button>
+                  Tukar
+                </button>
               </div>
             </article>
           );

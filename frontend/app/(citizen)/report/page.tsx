@@ -123,7 +123,7 @@ export default function ReportPage() {
       ? Boolean(photo) && !screeningLoading && screening !== null &&
         ((screening.status === "done" && screening.ok) || screening.status === "unavailable")
       : step === 2
-        ? Boolean(location) && (category !== "other" || otherDescription.trim().length > 0)
+        ? Boolean(location)
         : true;
   const steps = [
     { id: 1, label: "Foto", icon: Sparkles },
@@ -185,7 +185,7 @@ export default function ReportPage() {
         {screeningLoading && <p role="status" className="mt-3 text-sm text-primary-700">AI sedang memeriksa foto…</p>}
         {screening?.status === "unavailable" && <p role="status" className="mt-3 text-sm text-warning-800">Pemeriksaan AI tidak tersedia — foto tetap bisa dikirim dan akan divalidasi setelah laporan masuk.</p>}
         {screenFail && <div role="alert" className="mt-3 rounded-lg border border-danger-600 bg-danger-50 px-3 py-2.5 text-sm text-danger-700"><p className="font-semibold">{screenFail.title}</p><p className="mt-1">{screenFail.body}</p><Button type="button" variant="danger" className="mt-2" disabled={screeningLoading} onClick={clearPhoto}>Ambil foto ulang</Button></div>}
-        {screening?.status === "done" && screening.ok && <div role="status" className="mt-3 rounded-lg border border-success-600 bg-success-50 px-3 py-2.5 text-sm text-success-700"><p className="font-semibold">Terdeteksi: {categoryLabel[screening.category ?? "other"]}{screening.category === "pothole" && screening.severity ? ` — tingkat keparahan ${severityLabel[screening.severity] ?? screening.severity}` : ""}</p></div>}
+        {screening?.status === "done" && screening.ok && <div role="status" className="mt-3 rounded-lg border border-success-600 bg-success-50 px-3 py-2.5 text-sm text-success-700"><p className="font-semibold">Terdeteksi: {categoryLabel[screening.category ?? "other"]}{screening.category === "pothole" && screening.severity ? ` — tingkat keparahan ${severityLabel[screening.severity] ?? screening.severity}` : ""}</p>{screening.category === "other" && <p className="mt-1 text-xs">Anda akan diminta menjelaskan kerusakannya pada Tahap 2.</p>}</div>}
         {(screening?.redacted_faces ?? 0) + (screening?.redacted_plates ?? 0) > 0 && <p role="status" className="mt-3 rounded-lg border border-info-600 bg-info-50 px-3 py-2.5 text-sm text-info-800">Wajah dan/atau plat nomor kendaraan pada foto telah disensor otomatis demi privasi.</p>}
       </section>}
       {step === 2 && <section><p className="text-xs font-semibold uppercase tracking-wider text-primary-700">Tahap 2 · Penentuan lokasi</p><h2 className="mt-1 text-xl font-bold text-neutral-900">Di mana kerusakannya?</h2><p className="mt-1 text-sm text-neutral-500">Tandai titik di peta dan pilih kategori yang paling sesuai.</p><div className="mt-4 overflow-hidden rounded-xl border border-neutral-200"><LocationPicker onLocation={(lat, lng) => setLocation({ lat, lng })} /></div><fieldset className="mt-6"><legend className="font-semibold text-neutral-900">Kategori kerusakan</legend><p className="mt-1 text-xs text-neutral-500">Pilih jenis masalah yang Anda temukan.</p><div className="mt-3 grid gap-2">{([["pothole", "Jalan berlubang"], ["street_light", "PJU mati"], ["other", "Kerusakan lainnya"]] as const).map(([value, label]) => <Button key={value} type="button" variant={category === value ? "primary" : "secondary"} onClick={() => setCategory(value)}>{label}</Button>)}</div></fieldset>{category === "other" && <div className="mt-5"><label htmlFor="other-description" className="text-sm font-semibold text-neutral-900">Apa kerusakan yang Anda temukan?</label><p className="mt-1 text-xs text-neutral-500">Tulis singkat agar petugas lebih cepat memahami masalahnya.</p><textarea id="other-description" rows={3} maxLength={500} value={otherDescription} onChange={(e) => { setOtherDescription(e.target.value); if (error) setError(null); }} placeholder="Contoh: Saluran air mampet causing air menggenang di depan pasar." className="mt-2 w-full rounded-xl border border-neutral-300 bg-neutral-0 p-3 text-sm text-neutral-900 focus-visible:border-accent-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/25" /><p className="mt-1 text-right text-xs text-neutral-400">{otherDescription.length}/500</p></div>}</section>}
@@ -201,8 +201,10 @@ export default function ReportPage() {
           setError(`Foto terdeteksi "${categoryLabel[screening.category]}", bukan "${categoryLabel[category]}". Pilih kategori yang sesuai atau ambil foto ulang.`);
           return;
         }
-        if (step === 2) setError(null);
-        if (category === "other" && otherDescription.trim().length === 0) { setError("Jelaskan kerusakan yang Anda temukan."); return; }
+        if (step === 2) {
+          if (category === "other" && otherDescription.trim().length === 0) { setError("Jelaskan kerusakan yang Anda temukan."); return; }
+          setError(null);
+        }
         setStep((s) => (s + 1) as 1 | 2 | 3);
       }}>Lanjut</Button> : <Button type="button" className="ml-auto" onClick={submit}>Kirim laporan</Button>}</div>
     </Card>

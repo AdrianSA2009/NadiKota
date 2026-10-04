@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="640" viewBox="0 0 1440 640" role="img" aria-labelledby="title desc">
+  <title id="title">Alur penanganan laporan NadiKota</title>
+  <desc id="desc">Diagram enam tahap: Capture, Validate, Cluster, Prioritize, Dispatch, Track. Menunjukkan AI sebagai validasi, aturan deterministik untuk klaster dan prioritas, tinjauan manusia, lalu pelacakan warga.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#f5f8fc"/><stop offset="1" stop-color="#eaf1f7"/></linearGradient>
+    <linearGradient id="navy" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#12345b"/><stop offset="1" stop-color="#1d4f7a"/></linearGradient>
+    <linearGradient id="teal" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#087f70"/><stop offset="1" stop-color="#0f9f8c"/></linearGradient>
+    <linearGradient id="amber" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#c2410c"/><stop offset="1" stop-color="#ea580c"/></linearGradient>
+    <filter id="shadow" x="-15%" y="-20%" width="130%" height="150%"><feDropShadow dx="0" dy="8" stdDeviation="9" flood-color="#0b1f3a" flood-opacity=".13"/></filter>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0 10 5 0 10Z" fill="#52708f"/></marker>
+    <style>
+      text{font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
+      .title{font-size:30px;font-weight:800;fill:#102b49;letter-spacing:-.4px}
+      .subtitle{font-size:15px;font-weight:500;fill:#60748a}
+      .step{font-size:17px;font-weight:800;fill:#fff;letter-spacing:1px}
+      .body{font-size:14px;font-weight:500;fill:#fff;opacity:.94}
+      .tag{font-size:11px;font-weight:700;fill:#fff;letter-spacing:.5px}
+      .legend{font-size:13px;font-weight:600;fill:#243b53}
+      .note{font-size:11px;font-weight:500;fill:#657b91}
+    </style>
+  </defs>
+  <rect width="1440" height="640" rx="28" fill="url(#bg)"/>
+  <circle cx="1320" cy="70" r="130" fill="#0f9f8c" opacity=".045"/><circle cx="55" cy="570" r="150" fill="#1d4f7a" opacity=".04"/>
+  <text x="64" y="68" class="title">Dari Laporan Warga ke Perbaikan Jalan</text>
+  <text x="64" y="96" class="subtitle">Alur aktual NadiKota · pemeriksaan otomatis membantu petugas, keputusan tiket tetap melalui review manusia</text>
+
+  <!-- connectors -->
+  <g fill="none" stroke="#52708f" stroke-width="3" marker-end="url(#arrow)">
+    <path d="M250 280H276"/><path d="M470 280H496"/><path d="M690 280H716"/><path d="M910 280H936"/><path d="M1130 280H1156"/>
+  </g>
+  <g filter="url(#shadow)">
+    <!-- Capture -->
+    <rect x="64" y="160" width="186" height="240" rx="20" fill="url(#navy)"/>
+    <circle cx="94" cy="192" r="15" fill="#fff" opacity=".16"/><text x="94" y="197" text-anchor="middle" class="tag">01</text>
+    <text x="157" y="202" text-anchor="middle" class="step">CAPTURE</text>
+    <text x="157" y="250" text-anchor="middle" class="body"><tspan x="157">Warga foto</tspan><tspan x="157" dy="21">kerusakan</tspan><tspan x="157" dy="29">+ lokasi, kategori</tspan><tspan x="157" dy="21">dan deskripsi</tspan></text>
+    <rect x="88" y="348" width="138" height="28" rx="14" fill="#fff" opacity=".14"/><text x="157" y="367" text-anchor="middle" class="tag">AKSI WARGA</text>
+    <!-- Validate -->
+    <rect x="284" y="160" width="186" height="240" rx="20" fill="url(#teal)"/>
+    <circle cx="314" cy="192" r="15" fill="#fff" opacity=".17"/><text x="314" y="197" text-anchor="middle" class="tag">02</text>
+    <text x="377" y="202" text-anchor="middle" class="step">VALIDATE</text>
+    <text x="377" y="250" text-anchor="middle" class="body"><tspan x="377">Screening foto</tspan><tspan x="377" dy="21">dan validasi AI</tspan><tspan x="377" dy="29">hasil meragukan</tspan><tspan x="377" dy="21">masuk tinjauan</tspan></text>
+    <rect x="308" y="348" width="138" height="28" rx="14" fill="#fff" opacity=".17"/><text x="377" y="367" text-anchor="middle" class="tag">AI + DETEKTOR</text>
+    <!-- Cluster -->
+    <rect x="504" y="160" width="186" height="240" rx="20" fill="url(#navy)"/>
+    <circle cx="534" cy="192" r="15" fill="#fff" opacity=".16"/><text x="534" y="197" text-anchor="middle" class="tag">03</text>
+    <text x="597" y="202" text-anchor="middle" class="step">CLUSTER</text>
+    <text x="597" y="250" text-anchor="middle" class="body"><tspan x="597">Lokasi diperiksa</tspan><tspan x="597" dy="21">dan laporan dekat</tspan><tspan x="597" dy="29">dikelompokkan ke</tspan><tspan x="597" dy="21">tiket yang sama</tspan></text>
+    <rect x="528" y="348" width="138" height="28" rx="14" fill="#fff" opacity=".14"/><text x="597" y="367" text-anchor="middle" class="tag">POSTGIS · ATURAN</text>
+    <!-- Prioritize -->
+    <rect x="724" y="160" width="186" height="240" rx="20" fill="url(#navy)"/>
+    <circle cx="754" cy="192" r="15" fill="#fff" opacity=".16"/><text x="754" y="197" text-anchor="middle" class="tag">04</text>
+    <text x="817" y="202" text-anchor="middle" class="step">PRIORITIZE</text>
+    <text x="817" y="250" text-anchor="middle" class="body"><tspan x="817">Skor deterministik:</tspan><tspan x="817" dy="21">keparahan, pelapor,</tspan><tspan x="817" dy="21">kelas jalan, fasilitas</tspan><tspan x="817" dy="21">kritis dan umur tiket</tspan></text>
+    <rect x="748" y="348" width="138" height="28" rx="14" fill="#fff" opacity=".14"/><text x="817" y="367" text-anchor="middle" class="tag">PRIORITY ENGINE</text>
+    <!-- Dispatch -->
+    <rect x="944" y="160" width="186" height="240" rx="20" fill="url(#amber)"/>
+    <circle cx="974" cy="192" r="15" fill="#fff" opacity=".18"/><text x="974" y="197" text-anchor="middle" class="tag">05</text>
+    <text x="1037" y="202" text-anchor="middle" class="step">DISPATCH</text>
+    <text x="1037" y="250" text-anchor="middle" class="body"><tspan x="1037">Petugas meninjau</tspan><tspan x="1037" dy="21">dan menyetujui</tspan><tspan x="1037" dy="29">lalu menugaskan</tspan><tspan x="1037" dy="21">tim lapangan</tspan></text>
+    <rect x="968" y="348" width="138" height="28" rx="14" fill="#fff" opacity=".17"/><text x="1037" y="367" text-anchor="middle" class="tag">KEPUTUSAN MANUSIA</text>
+    <!-- Track -->
+    <rect x="1164" y="160" width="212" height="240" rx="20" fill="#587caf"/>
+    <circle cx="1194" cy="192" r="15" fill="#fff" opacity=".18"/><text x="1194" y="197" text-anchor="middle" class="tag">06</text>
+    <text x="1270" y="202" text-anchor="middle" class="step">TRACK</text>
+    <text x="1270" y="250" text-anchor="middle" class="body"><tspan x="1270">Tim kirim bukti</tspan><tspan x="1270" dy="21">perbaikan</tspan><tspan x="1270" dy="29">warga pantau status</tspan><tspan x="1270" dy="21">hingga selesai</tspan></text>
+    <rect x="1198" y="348" width="144" height="28" rx="14" fill="#fff" opacity=".18"/><text x="1270" y="367" text-anchor="middle" class="tag">BUKTI + STATUS</text>
+  </g>
+
+  <!-- human review loop -->
+  <path d="M1037 414V462H817V414" fill="none" stroke="#d97706" stroke-width="2" stroke-dasharray="7 6" marker-end="url(#arrow)"/>
+  <rect x="840" y="445" width="176" height="34" rx="17" fill="#fff7ed" stroke="#f3c28b"/>
+  <text x="928" y="467" text-anchor="middle" font-size="12" font-weight="700" fill="#9a4d0a">Review menolak → tindak lanjut</text>
+
+  <!-- legend -->
+  <g transform="translate(90 535)">
+    <rect width="20" height="20" rx="5" fill="#0f9f8c"/><text x="30" y="15" class="legend">AI / persepsi otomatis</text>
+    <rect x="260" width="20" height="20" rx="5" fill="#1d4f7a"/><text x="290" y="15" class="legend">Aturan deterministik</text>
+    <rect x="510" width="20" height="20" rx="5" fill="#d97706"/><text x="540" y="15" class="legend">Keputusan manusia</text>
+    <rect x="760" width="20" height="20" rx="5" fill="#587caf"/><text x="790" y="15" class="legend">Aksi / pemantauan warga</text>
+  </g>
+  <text x="64" y="600" class="note">Status utama: needs_review → queued → in_progress → completed · Worker Redis memproses tugas latar; scheduler harian menghitung prioritas dan eskalasi SLA.</text>
+</svg>
