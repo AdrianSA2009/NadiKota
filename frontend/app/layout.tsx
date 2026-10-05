@@ -4,7 +4,7 @@ import { OfflineBanner } from "@/components/ui/OfflineBanner";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: { default: "NadiKota", template: "%s | NadiKota" },
+  title: "NadiKota",
   description: "Pelaporan infrastruktur Kota Batam.",
   icons: {
     icon: [

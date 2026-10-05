@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import Image from "next/image";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { BadgeCheck, ChevronDown, CircleX, ShieldQuestion } from "lucide-react";
+import { BadgeCheck, ChevronDown, CircleX, ShieldQuestion, X } from "lucide-react";
 import { z } from "zod";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -173,6 +173,7 @@ function ReviewDecisionForm({ ticket, onDone }: { ticket: ReviewTicket; onDone: 
   const [reason, setReason] = useState("");
   const [danger, setDanger] = useState<DangerLevel>(ticket.dangerLevel ?? "hati-hati");
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [photoOpen, setPhotoOpen] = useState(false);
   const mutation = useMutation({ mutationFn: (decision: "approved" | "rejected") => reviewTicket(ticket.id, decision, reason, danger), onSuccess: onDone });
   const ai = ticket.aiAnalysis;
   const aiDecision = ai ? ({ accepted: "Diterima AI", rejected: "Ditolak AI", suspicious: "Perlu perhatian" }[ai.decision ?? ""] ?? ai.decision) : null;
@@ -181,8 +182,25 @@ function ReviewDecisionForm({ ticket, onDone }: { ticket: ReviewTicket; onDone: 
   return <>
     <div className="flex items-start justify-between gap-3"><div><p className="text-sm text-neutral-500">Tingkat bahaya: <span className={danger === "bahaya" ? "font-semibold text-danger-700" : "font-semibold text-warning-800"}>{dangerLevelLabel(danger)}</span></p></div><span className="inline-flex items-center gap-1.5 rounded-full border border-info-600 bg-info-50 px-2.5 py-1 text-xs font-semibold text-info-800"><ShieldQuestion className="size-4" aria-hidden="true" />Perlu Tinjauan</span></div>
     {ticket.photoUrl
-      ? <div className="mt-3 overflow-hidden rounded-xl border border-neutral-200"><Image src={ticket.photoUrl} alt={`Foto laporan ${ticket.ticketNumber}`} width={640} height={480} unoptimized className="max-h-64 w-full object-cover" /></div>
+      ? <button type="button" onClick={() => setPhotoOpen(true)} aria-label="Perbesar foto laporan" className="mt-3 block w-full cursor-zoom-in overflow-hidden rounded-xl border border-neutral-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500">
+          <Image src={ticket.photoUrl} alt={`Foto laporan ${ticket.ticketNumber}`} width={640} height={480} unoptimized className="max-h-64 w-full object-cover" />
+        </button>
       : <p className="mt-3 text-sm text-neutral-500">Foto tidak tersedia.</p>}
+    {photoOpen && ticket.photoUrl && (
+      <div
+        className="fixed inset-0 z-[1300] flex items-center justify-center bg-neutral-950/85 p-4"
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Foto laporan ${ticket.ticketNumber}`}
+        onClick={(event) => { if (event.target === event.currentTarget) setPhotoOpen(false); }}
+        onKeyDown={(event) => { if (event.key === "Escape") setPhotoOpen(false); }}
+      >
+        <button type="button" onClick={() => setPhotoOpen(false)} aria-label="Tutup foto" className="absolute right-4 top-4 rounded-full bg-neutral-0/15 p-3 text-neutral-0 transition hover:bg-neutral-0/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-0">
+          <X className="size-6" aria-hidden="true" />
+        </button>
+        <Image src={ticket.photoUrl} alt={`Foto laporan ${ticket.ticketNumber}`} width={1600} height={1200} unoptimized className="max-h-[90vh] max-w-[92vw] rounded-lg object-contain" />
+      </div>
+    )}
     <div className="mt-3 rounded-xl border border-neutral-200 bg-neutral-50 p-3 text-sm"><p className="font-semibold text-neutral-900">Analisis AI</p>{ai
       ? <div className="mt-1 space-y-0.5 text-neutral-600"><p>Keputusan: {aiDecision ?? "—"}</p><p>Keparahan: {aiSeverity ?? "—"}</p>{ai.confidence != null && <p>Keyakinan: {Math.round(ai.confidence * 100)}%</p>}{ai.reason && <p>Alasan: {ai.reason}</p>}</div>
       : <p className="mt-1 text-neutral-500">Belum ada analisis AI.</p>}</div>

@@ -360,7 +360,7 @@ export function FieldTasksView() {
                         type="button"
                         disabled={!proof || submitProof.isPending}
                         onClick={() => { if (proof) submitProof.mutate({ id: t.id, file: proof.file }); }}
-                        className={`${primaryBtn} bg-[#1abc9c] text-[#0a2136] shadow-[0_8px_18px_rgba(26,188,156,0.35)] hover:bg-[#22cfad] disabled:bg-[#8093a8] disabled:text-neutral-0 disabled:shadow-none`}
+                        className={`${primaryBtn} bg-[#1abc9c] text-[#0a2136] shadow-[0_8px_18px_rgba(26,188,156,0.35)] hover:-translate-y-0.5 hover:bg-[#22cfad] disabled:translate-y-0 disabled:bg-[#8093a8] disabled:text-neutral-0 disabled:shadow-none`}
                       >
                         {submitProof.isPending ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <FaRegCircleCheck aria-hidden="true" />}
                         Selesai

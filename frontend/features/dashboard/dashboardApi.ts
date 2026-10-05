@@ -43,10 +43,35 @@ export async function searchTeamLeaders(q: string): Promise<{ id: number; name: 
 /** Semua tiket aktif untuk halaman dispatch (queued + in_progress) — difilter di UI. */
 export async function getDispatchTickets(): Promise<DispatchTicket[]> { return (await apiClient.get<{ data: DispatchTicket[] }>("/tickets", { params: { per_page: 100 } })).data.data; }
 export async function assignTicket(ticketId: number, teamId: number): Promise<DispatchTicket> { return (await apiClient.post<{ data: DispatchTicket }>(`/tickets/${ticketId}/dispatch`, { teamId })).data.data; }
+
+async function compressProofPhoto(file: File): Promise<File> {
+  const bitmap = await createImageBitmap(file);
+  try {
+    const canvas = document.createElement("canvas");
+    const scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height));
+    canvas.width = Math.round(bitmap.width * scale);
+    canvas.height = Math.round(bitmap.height * scale);
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("Foto bukti tidak dapat diproses. Pilih foto lain.");
+    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+
+    for (const quality of [0.82, 0.72, 0.62, 0.52]) {
+      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", quality));
+      if (blob && blob.size <= 1_500_000) {
+        return new File([blob], "bukti-perbaikan.jpg", { type: "image/jpeg" });
+      }
+    }
+    throw new Error("Ukuran foto bukti terlalu besar untuk diunggah. Pilih foto yang lebih kecil.");
+  } finally {
+    bitmap.close();
+  }
+}
+
 export async function completeTicket(ticketId: number, photo: File): Promise<DispatchTicket> {
+  const uploadPhoto = await compressProofPhoto(photo);
   const formData = new FormData();
-  formData.append("after_photo", photo, photo.name);
-  return (await apiClient.post<{ data: DispatchTicket }>(`/tickets/${ticketId}/complete`, formData, { headers: { "Content-Type": "multipart/form-data", "Idempotency-Key": crypto.randomUUID() } })).data.data;
+  formData.append("after_photo", uploadPhoto, uploadPhoto.name);
+  return (await apiClient.post<{ data: DispatchTicket }>(`/tickets/${ticketId}/complete`, formData, { headers: { "Idempotency-Key": crypto.randomUUID() } })).data.data;
 }
 
 export async function cancelTicket(ticketId: number, reason: string): Promise<{ ticket_id: number; status: "cancelled"; message: string }> {
